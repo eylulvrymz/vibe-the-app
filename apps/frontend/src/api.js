@@ -1,6 +1,6 @@
 import { demoUserPassword, follows, seedPosts, tracks, users } from "./mockData.js";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080/api";
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? "http://localhost:8080/api" : "");
 const STORAGE_KEY = "vibe-local-state";
 
 function loadLocalState() {
@@ -25,6 +25,9 @@ function saveLocalState(state) {
 }
 
 async function request(path, { method = "GET", body, token } = {}) {
+  if (!API_BASE) {
+    throw new Error("API is not configured for this deployment");
+  }
   const response = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {

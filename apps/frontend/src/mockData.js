@@ -1,5 +1,7 @@
 export const demoUserPassword = "vibe1234";
 
+const assetUrl = (path) => `${import.meta.env.BASE_URL}${path}`;
+
 export const tracks = [
   {
     id: 1,
@@ -8,7 +10,7 @@ export const tracks = [
     album: "City Lights EP",
     genre: "Synth Pop",
     mood: "glowing",
-    coverUrl: "/assets/covers/afterglow-loop.png",
+    coverUrl: assetUrl("assets/covers/afterglow-loop.png"),
   },
   {
     id: 2,
@@ -17,7 +19,7 @@ export const tracks = [
     album: "Late Platform",
     genre: "Indie Pop",
     mood: "restless",
-    coverUrl: "/assets/covers/blue-hour-signal.png",
+    coverUrl: assetUrl("assets/covers/blue-hour-signal.png"),
   },
   {
     id: 3,
@@ -26,7 +28,7 @@ export const tracks = [
     album: "Soft Voltage",
     genre: "Alt R&B",
     mood: "magnetic",
-    coverUrl: "/assets/covers/velvet-static.png",
+    coverUrl: assetUrl("assets/covers/velvet-static.png"),
   },
   {
     id: 4,
@@ -35,7 +37,7 @@ export const tracks = [
     album: "Borrowed Weather",
     genre: "Indie Rock",
     mood: "open-road",
-    coverUrl: "/assets/covers/glass-coast.png",
+    coverUrl: assetUrl("assets/covers/glass-coast.png"),
   },
   {
     id: 5,
@@ -44,7 +46,7 @@ export const tracks = [
     album: "Night Maps",
     genre: "Electronic",
     mood: "focused",
-    coverUrl: "/assets/covers/low-orbit.png",
+    coverUrl: assetUrl("assets/covers/low-orbit.png"),
   },
   {
     id: 6,
@@ -53,7 +55,7 @@ export const tracks = [
     album: "Small Rooms",
     genre: "Lo-Fi",
     mood: "warm",
-    coverUrl: "/assets/covers/sunday-frequency.png",
+    coverUrl: assetUrl("assets/covers/sunday-frequency.png"),
   },
 ];
 

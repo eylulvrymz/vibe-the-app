@@ -27,6 +27,7 @@ import {
 } from "./api.js";
 
 const savedSession = JSON.parse(localStorage.getItem("vibe-session") || "null");
+const assetUrl = (path) => `${import.meta.env.BASE_URL}${path}`;
 
 export default function App() {
   const [session, setSession] = useState(savedSession);
@@ -184,9 +185,9 @@ function AuthScreen({ onLogin, onRegister }) {
         <h1>Vibe</h1>
         <p>Post the track, mood, and moment before it disappears.</p>
         <div className="hero-albums">
-          <img src="/assets/covers/afterglow-loop.png" alt="Afterglow Loop cover" />
-          <img src="/assets/covers/velvet-static.png" alt="Velvet Static cover" />
-          <img src="/assets/covers/glass-coast.png" alt="Glass Coast cover" />
+          <img src={assetUrl("assets/covers/afterglow-loop.png")} alt="Afterglow Loop cover" />
+          <img src={assetUrl("assets/covers/velvet-static.png")} alt="Velvet Static cover" />
+          <img src={assetUrl("assets/covers/glass-coast.png")} alt="Glass Coast cover" />
         </div>
       </section>
       <section className="auth-panel">

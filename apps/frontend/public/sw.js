@@ -1,5 +1,6 @@
 const CACHE_NAME = "vibe-shell-v1";
-const SHELL = ["/", "/manifest.webmanifest"];
+const BASE_URL = self.registration.scope;
+const SHELL = [BASE_URL, `${BASE_URL}manifest.webmanifest`];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)));
@@ -10,6 +11,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
+    fetch(event.request).catch(() => caches.match(event.request).then((cached) => cached || caches.match(BASE_URL)))
   );
 });
