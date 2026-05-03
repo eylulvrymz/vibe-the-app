@@ -1,4 +1,4 @@
-const CACHE_NAME = "vibe-shell-v1";
+const CACHE_NAME = "vibe-shell-v2";
 const BASE_URL = self.registration.scope;
 const SHELL = [BASE_URL, `${BASE_URL}manifest.webmanifest`];
 

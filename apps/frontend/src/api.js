@@ -4,6 +4,11 @@ const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? "http:/
 const STORAGE_KEY = "vibe-local-state";
 
 function normalizeLocalState(state) {
+  const credentials = { ...(state.credentials || {}) };
+  for (const user of users) {
+    credentials[user.username.toLowerCase()] = credentials[user.username.toLowerCase()] || demoUserPassword;
+  }
+
   return {
     users: state.users || [...users],
     tracks: state.tracks || [...tracks],
@@ -13,6 +18,7 @@ function normalizeLocalState(state) {
       return cleanPost;
     }),
     likes: state.likes || [...seedLikes],
+    credentials,
   };
 }
 
@@ -31,6 +37,7 @@ function loadLocalState() {
     follows: [...follows],
     posts: seedPosts.map((post) => ({ ...post })),
     likes: [...seedLikes],
+    credentials: Object.fromEntries(users.map((user) => [user.username.toLowerCase(), demoUserPassword])),
   });
 }
 
@@ -119,8 +126,17 @@ export async function login(username, password) {
   } catch {
     const state = loadLocalState();
     const user = state.users.find((item) => item.username.toLowerCase() === username.toLowerCase());
-    if (!user || password !== demoUserPassword) {
+    if (!user) {
       throw new Error("Invalid username or password");
+    }
+    const normalizedUsername = user.username.toLowerCase();
+    const storedPassword = state.credentials[normalizedUsername];
+    if (storedPassword && password !== storedPassword) {
+      throw new Error("Invalid username or password");
+    }
+    if (!storedPassword) {
+      state.credentials[normalizedUsername] = password;
+      saveLocalState(state);
     }
     return { user, token: localTokenFor(user), offline: true };
   }
@@ -146,6 +162,7 @@ export async function register(displayName, username, password, genres) {
       favoriteGenres: genres.split(",").map((genre) => genre.trim()).filter(Boolean),
     };
     state.users.push(user);
+    state.credentials[username.toLowerCase()] = password;
     saveLocalState(state);
     return { user, token: localTokenFor(user), offline: true };
   }
