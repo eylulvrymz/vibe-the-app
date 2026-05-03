@@ -1,0 +1,29 @@
+.DS_Store
+Thumbs.db
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# Java / backend
+.build/
+target/
+out/
+*.class
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Local runtime/tools/data
+.tools/
+*.db
+*.db-shm
+*.db-wal
+
+# Screenshots generated during verification
+docs/screenshots/generated/

@@ -1,0 +1,21 @@
+{
+  "name": "Vibe",
+  "short_name": "Vibe",
+  "description": "Music-based social app for posting songs, moods, and trending vibes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    {
+      "src": "/assets/icons/vibe-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icons/vibe-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

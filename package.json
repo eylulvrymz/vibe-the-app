@@ -1,0 +1,13 @@
+{
+  "name": "vibe-the-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Music-based social web app MVP with Java backend, Python algorithms, and React PWA frontend.",
+  "scripts": {
+    "frontend:install": "cd apps/frontend && npm install",
+    "frontend:dev": "cd apps/frontend && npm run dev",
+    "frontend:build": "cd apps/frontend && npm run build",
+    "algorithms:test": "python -m unittest discover -s services/algorithms-python/tests",
+    "backend:run": "powershell -ExecutionPolicy Bypass -File scripts/run-backend.ps1"
+  }
+}
