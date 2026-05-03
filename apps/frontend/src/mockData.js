@@ -114,6 +114,19 @@ export const follows = [
   [5, 2],
 ];
 
+export const seedLikes = [
+  [1, 2],
+  [1, 4],
+  [2, 1],
+  [2, 3],
+  [3, 1],
+  [3, 2],
+  [4, 2],
+  [4, 5],
+  [5, 1],
+  [5, 3],
+];
+
 export const seedPosts = [
   {
     id: 1,
@@ -122,8 +135,6 @@ export const seedPosts = [
     mood: "Late-night",
     caption: "This one feels like walking home while the whole city is humming.",
     createdAt: "2026-05-03 20:10:00",
-    likeCount: 3,
-    likedByMe: false,
   },
   {
     id: 2,
@@ -132,8 +143,6 @@ export const seedPosts = [
     mood: "Magnetic",
     caption: "Bassline of the week. No contest.",
     createdAt: "2026-05-03 19:40:00",
-    likeCount: 4,
-    likedByMe: true,
   },
   {
     id: 3,
@@ -142,8 +151,6 @@ export const seedPosts = [
     mood: "Restless",
     caption: "For anyone turning a bus ride into a music video.",
     createdAt: "2026-05-03 18:25:00",
-    likeCount: 2,
-    likedByMe: false,
   },
   {
     id: 4,
@@ -152,8 +159,6 @@ export const seedPosts = [
     mood: "Open-road",
     caption: "The chorus opens the windows by itself.",
     createdAt: "2026-05-03 17:55:00",
-    likeCount: 1,
-    likedByMe: false,
   },
   {
     id: 5,
@@ -162,7 +167,5 @@ export const seedPosts = [
     mood: "Focus",
     caption: "Keeping this on loop while I build the next playlist.",
     createdAt: "2026-05-03 16:30:00",
-    likeCount: 1,
-    likedByMe: false,
   },
 ];

@@ -51,9 +51,9 @@ button {
 
 .logo-button,
 .sidebar nav button,
-.sidebar-user button,
+.sidebar-user > button,
 .icon-primary,
-.suggestion-row button {
+.suggestion-row > button:last-child {
   display: grid;
   place-items: center;
   width: 44px;
@@ -101,6 +101,38 @@ button {
   text-overflow: ellipsis;
   color: #9fb0bf;
   font-size: 12px;
+}
+
+.avatar-button,
+.profile-link,
+.name-button,
+.relationship-user {
+  appearance: none;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.avatar-button {
+  display: inline-grid;
+  place-items: center;
+  width: max-content;
+  height: max-content;
+  border-radius: 8px;
+}
+
+.profile-link,
+.name-button {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profile-link:hover strong,
+.name-button:hover strong,
+.relationship-user:hover strong {
+  color: #1ed760;
 }
 
 .main-panel {
@@ -306,7 +338,8 @@ button {
 .post-meta strong,
 .suggestion-row strong,
 .mini-track strong,
-.track-result strong {
+.track-result strong,
+.relationship-user strong {
   display: block;
   overflow: hidden;
   color: #f7fbff;
@@ -319,7 +352,8 @@ button {
 .post-actions,
 .suggestion-row span,
 .mini-track small,
-.track-result span {
+.track-result span,
+.relationship-user small {
   color: #9fb0bf;
 }
 
@@ -421,7 +455,7 @@ button {
   grid-template-columns: 40px minmax(0, 1fr) 36px;
 }
 
-.suggestion-row button {
+.suggestion-row > button:last-child {
   width: 36px;
   height: 36px;
   color: #061109;
@@ -619,6 +653,45 @@ button {
   font-size: 13px;
 }
 
+.follow-profile-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  height: 38px;
+  margin-top: 14px;
+  padding: 0 12px;
+  color: #061109;
+  background: #1ed760;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.relationship-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.relationship-user {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.relationship-user span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.empty-copy {
+  margin: 0;
+  color: #9fb0bf;
+}
+
 .search-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -662,7 +735,8 @@ button {
 
   .content-grid,
   .auth-shell,
-  .search-grid {
+  .search-grid,
+  .relationship-grid {
     grid-template-columns: 1fr;
   }
 

@@ -1,27 +1,41 @@
-import { demoUserPassword, follows, seedPosts, tracks, users } from "./mockData.js";
+import { demoUserPassword, follows, seedLikes, seedPosts, tracks, users } from "./mockData.js";
 
 const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? "http://localhost:8080/api" : "");
 const STORAGE_KEY = "vibe-local-state";
+
+function normalizeLocalState(state) {
+  return {
+    users: state.users || [...users],
+    tracks: state.tracks || [...tracks],
+    follows: state.follows || [...follows],
+    posts: (state.posts || seedPosts).map((post) => {
+      const { likedByMe, likeCount, ...cleanPost } = post;
+      return cleanPost;
+    }),
+    likes: state.likes || [...seedLikes],
+  };
+}
 
 function loadLocalState() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     try {
-      return JSON.parse(saved);
+      return normalizeLocalState(JSON.parse(saved));
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }
   }
-  return {
+  return normalizeLocalState({
     users: [...users],
     tracks: [...tracks],
     follows: [...follows],
     posts: seedPosts.map((post) => ({ ...post })),
-  };
+    likes: [...seedLikes],
+  });
 }
 
 function saveLocalState(state) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeLocalState(state)));
 }
 
 async function request(path, { method = "GET", body, token } = {}) {
@@ -53,6 +67,50 @@ function userFromToken(token, state) {
   }
   const id = Number(token.split("-")[1]);
   return state.users.find((user) => user.id === id) || state.users[0];
+}
+
+function decoratedPost(post, currentUser, state) {
+  const postId = Number(post.id);
+  const currentUserId = currentUser?.id || 0;
+  return {
+    ...post,
+    likeCount: state.likes.filter(([, likedPostId]) => Number(likedPostId) === postId).length,
+    likedByMe: state.likes.some(
+      ([likerId, likedPostId]) => Number(likerId) === currentUserId && Number(likedPostId) === postId
+    ),
+  };
+}
+
+function decoratedPosts(posts, currentUser, state) {
+  return posts.map((post) => decoratedPost(post, currentUser, state));
+}
+
+function profilePayload(state, currentUser, userId) {
+  const user = state.users.find((item) => item.id === Number(userId)) || state.users[0];
+  const followerUsers = state.follows
+    .filter(([, followingId]) => followingId === user.id)
+    .map(([followerId]) => state.users.find((item) => item.id === followerId))
+    .filter(Boolean);
+  const followingUsers = state.follows
+    .filter(([followerId]) => followerId === user.id)
+    .map(([, followingId]) => state.users.find((item) => item.id === followingId))
+    .filter(Boolean);
+  const posts = decoratedPosts(
+    state.posts.filter((post) => post.user.id === user.id),
+    currentUser,
+    state
+  );
+
+  return {
+    ...user,
+    followers: followerUsers.length,
+    following: followingUsers.length,
+    followerUsers,
+    followingUsers,
+    postCount: posts.length,
+    posts,
+    isFollowing: state.follows.some(([from, to]) => from === currentUser.id && to === user.id),
+  };
 }
 
 export async function login(username, password) {
@@ -97,7 +155,9 @@ export async function getFeed(token) {
   try {
     return await request("/feed", { token });
   } catch {
-    return { posts: loadLocalState().posts };
+    const state = loadLocalState();
+    const current = userFromToken(token, state);
+    return { posts: decoratedPosts(state.posts, current, state) };
   }
 }
 
@@ -105,7 +165,9 @@ export async function getTrending(token) {
   try {
     return await request("/trending", { token });
   } catch {
-    const posts = [...loadLocalState().posts].sort((left, right) => right.likeCount - left.likeCount);
+    const state = loadLocalState();
+    const current = userFromToken(token, state);
+    const posts = decoratedPosts(state.posts, current, state).sort((left, right) => right.likeCount - left.likeCount);
     return { posts };
   }
 }
@@ -132,12 +194,10 @@ export async function createPost(token, payload) {
       mood: payload.mood || "Fresh",
       caption: payload.caption || "",
       createdAt: new Date().toISOString(),
-      likeCount: 0,
-      likedByMe: false,
     };
     state.posts.unshift(post);
     saveLocalState(state);
-    return { post, offline: true };
+    return { post: decoratedPost(post, user, state), offline: true };
   }
 }
 
@@ -146,13 +206,19 @@ export async function likePost(token, postId) {
     return await request(`/posts/${postId}/like`, { method: "POST", token });
   } catch {
     const state = loadLocalState();
-    const post = state.posts.find((item) => item.id === postId);
-    if (post && !post.likedByMe) {
-      post.likedByMe = true;
-      post.likeCount += 1;
-      saveLocalState(state);
+    const current = userFromToken(token, state);
+    const numericPostId = Number(postId);
+    const existingIndex = state.likes.findIndex(
+      ([likerId, likedPostId]) => likerId === current.id && likedPostId === numericPostId
+    );
+    if (existingIndex >= 0) {
+      state.likes.splice(existingIndex, 1);
+    } else {
+      state.likes.push([current.id, numericPostId]);
     }
-    return { post, offline: true };
+    saveLocalState(state);
+    const post = state.posts.find((item) => item.id === numericPostId);
+    return { post: post ? decoratedPost(post, current, state) : null, offline: true };
   }
 }
 
@@ -161,16 +227,8 @@ export async function getProfile(token, userId) {
     return await request(`/users/${userId}`, { token });
   } catch {
     const state = loadLocalState();
-    const user = state.users.find((item) => item.id === userId) || state.users[0];
-    return {
-      user: {
-        ...user,
-        followers: state.follows.filter((follow) => follow[1] === user.id).length,
-        following: state.follows.filter((follow) => follow[0] === user.id).length,
-        postCount: state.posts.filter((post) => post.user.id === user.id).length,
-        posts: state.posts.filter((post) => post.user.id === user.id),
-      },
-    };
+    const current = userFromToken(token, state);
+    return { user: profilePayload(state, current, userId) };
   }
 }
 

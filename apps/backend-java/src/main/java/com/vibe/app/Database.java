@@ -92,10 +92,17 @@ public final class Database {
     }
 
     public synchronized Map<String, Object> likePost(long userId, long postId) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement("INSERT OR IGNORE INTO likes (user_id, post_id) VALUES (?, ?)");
-        statement.setLong(1, userId);
-        statement.setLong(2, postId);
-        statement.executeUpdate();
+        if (scalar("SELECT COUNT(*) FROM likes WHERE user_id = ? AND post_id = ?", userId, postId) > 0) {
+            PreparedStatement delete = connection.prepareStatement("DELETE FROM likes WHERE user_id = ? AND post_id = ?");
+            delete.setLong(1, userId);
+            delete.setLong(2, postId);
+            delete.executeUpdate();
+        } else {
+            PreparedStatement statement = connection.prepareStatement("INSERT INTO likes (user_id, post_id) VALUES (?, ?)");
+            statement.setLong(1, userId);
+            statement.setLong(2, postId);
+            statement.executeUpdate();
+        }
         return postById(postId, userId);
     }
 
@@ -108,6 +115,8 @@ public final class Database {
         user.put("following", scalar("SELECT COUNT(*) FROM follows WHERE follower_id = ?", profileId));
         user.put("postCount", scalar("SELECT COUNT(*) FROM posts WHERE user_id = ?", profileId));
         user.put("isFollowing", scalar("SELECT COUNT(*) FROM follows WHERE follower_id = ? AND following_id = ?", currentUserId, profileId) > 0);
+        user.put("followerUsers", relationshipUsers("SELECT u.* FROM follows f JOIN users u ON u.id = f.follower_id WHERE f.following_id = ? ORDER BY u.display_name", profileId));
+        user.put("followingUsers", relationshipUsers("SELECT u.* FROM follows f JOIN users u ON u.id = f.following_id WHERE f.follower_id = ? ORDER BY u.display_name", profileId));
         user.put("posts", posts("WHERE p.user_id = " + profileId + " ORDER BY p.created_at DESC, p.id DESC", currentUserId, 10));
         return user;
     }
@@ -295,6 +304,17 @@ public final class Database {
         track.put("mood", rs.getString("mood"));
         track.put("coverUrl", rs.getString("cover_url"));
         return track;
+    }
+
+    private List<Map<String, Object>> relationshipUsers(String sql, long userId) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(sql);
+        statement.setLong(1, userId);
+        ResultSet rs = statement.executeQuery();
+        List<Map<String, Object>> users = new ArrayList<Map<String, Object>>();
+        while (rs.next()) {
+            users.add(userFromResult(rs, false));
+        }
+        return users;
     }
 
     private long scalar(String sql, long... params) throws SQLException {

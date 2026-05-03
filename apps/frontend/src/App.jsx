@@ -10,6 +10,7 @@ import {
   TrendingUp,
   User,
   UserPlus,
+  Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -36,6 +37,7 @@ export default function App() {
   const [trending, setTrending] = useState([]);
   const [tracks, setTracks] = useState([]);
   const [profile, setProfile] = useState(null);
+  const [selectedProfileId, setSelectedProfileId] = useState(savedSession?.user?.id || null);
   const [suggestions, setSuggestions] = useState([]);
   const [query, setQuery] = useState("synth");
   const [results, setResults] = useState({ tracks: [], users: [] });
@@ -45,16 +47,17 @@ export default function App() {
     if (!session) {
       return;
     }
+    const profileId = selectedProfileId || session.user.id;
     localStorage.setItem("vibe-session", JSON.stringify(session));
-    refreshAll(session.token, session.user.id);
-  }, [session]);
+    refreshAll(session.token, session.user.id, profileId);
+  }, [session, selectedProfileId]);
 
-  async function refreshAll(token, userId) {
+  async function refreshAll(token, currentUserId, profileId = currentUserId) {
     const [feedData, trendingData, trackData, profileData, suggestionData] = await Promise.all([
       getFeed(token),
       getTrending(token),
       getTracks(),
-      getProfile(token, userId),
+      getProfile(token, profileId),
       getSuggestions(token),
     ]);
     setPosts(feedData.posts);
@@ -64,14 +67,21 @@ export default function App() {
     setSuggestions(suggestionData.users);
   }
 
+  async function refreshProfile(profileId = selectedProfileId || session.user.id) {
+    const profileData = await getProfile(session.token, profileId);
+    setProfile(profileData.user);
+  }
+
   async function handleLogin(username, password) {
     const payload = await login(username, password);
+    setSelectedProfileId(payload.user.id);
     setSession({ token: payload.token, user: payload.user, offline: payload.offline });
     setStatus(payload.offline ? "Local demo mode" : "Connected to Java API");
   }
 
   async function handleRegister(form) {
     const payload = await register(form.displayName, form.username, form.password, form.genres);
+    setSelectedProfileId(payload.user.id);
     setSession({ token: payload.token, user: payload.user, offline: payload.offline });
     setStatus(payload.offline ? "Local demo mode" : "Connected to Java API");
   }
@@ -79,15 +89,24 @@ export default function App() {
   async function handleCreatePost(payload) {
     const created = await createPost(session.token, payload);
     setPosts((current) => [created.post, ...current]);
-    const trend = await getTrending(session.token);
+    const [trend, viewedProfile] = await Promise.all([
+      getTrending(session.token),
+      getProfile(session.token, selectedProfileId || session.user.id),
+    ]);
     setTrending(trend.posts);
+    setProfile(viewedProfile.user);
   }
 
   async function handleLike(postId) {
     const payload = await likePost(session.token, postId);
-    const update = (items) => items.map((post) => (post.id === postId ? payload.post : post));
+    if (!payload.post) {
+      return;
+    }
+    const update = (items = []) => items.map((post) => (post.id === postId ? payload.post : post));
+    const trend = await getTrending(session.token);
     setPosts(update);
-    setTrending(update);
+    setTrending(trend.posts);
+    setProfile((current) => (current ? { ...current, posts: update(current.posts || []) } : current));
   }
 
   async function handleSearch(event) {
@@ -99,13 +118,31 @@ export default function App() {
 
   async function handleFollow(userId) {
     await followUser(session.token, userId);
-    const suggestionData = await getSuggestions(session.token);
+    const [suggestionData, profileData] = await Promise.all([
+      getSuggestions(session.token),
+      getProfile(session.token, selectedProfileId || session.user.id),
+    ]);
     setSuggestions(suggestionData.users);
+    setProfile(profileData.user);
+  }
+
+  async function openProfile(userId) {
+    setSelectedProfileId(userId);
+    setView("profile");
+    const profileData = await getProfile(session.token, userId);
+    setProfile(profileData.user);
+  }
+
+  function openOwnProfile() {
+    openProfile(session.user.id);
   }
 
   function logout() {
     localStorage.removeItem("vibe-session");
     setSession(null);
+    setProfile(null);
+    setPosts([]);
+    setTrending([]);
   }
 
   if (!session) {
@@ -113,15 +150,25 @@ export default function App() {
   }
 
   const activePosts = view === "trending" ? trending : posts;
+  const heading =
+    view === "trending"
+      ? "Trending now"
+      : view === "profile"
+        ? profile?.id === session.user.id
+          ? "Your profile"
+          : profile?.displayName || "Profile"
+        : view === "search"
+          ? "Search"
+          : "Home feed";
 
   return (
     <div className="app-shell">
-      <Sidebar view={view} setView={setView} user={session.user} onLogout={logout} />
+      <Sidebar view={view} setView={setView} user={session.user} onLogout={logout} onOwnProfile={openOwnProfile} />
       <main className="main-panel">
         <header className="topbar">
           <div>
             <p className="eyebrow">Vibe radar</p>
-            <h1>{view === "trending" ? "Trending now" : view === "profile" ? "Your profile" : view === "search" ? "Search" : "Home feed"}</h1>
+            <h1>{heading}</h1>
           </div>
           <form className="search-pill" onSubmit={handleSearch}>
             <Search size={18} />
@@ -132,9 +179,15 @@ export default function App() {
         {status && <div className="status-strip">{status}</div>}
 
         {view === "profile" ? (
-          <ProfileView profile={profile} posts={profile?.posts || []} onLike={handleLike} />
+          <ProfileView
+            profile={profile}
+            currentUser={session.user}
+            onLike={handleLike}
+            onNavigate={openProfile}
+            onFollow={handleFollow}
+          />
         ) : view === "search" ? (
-          <SearchView results={results} onFollow={handleFollow} />
+          <SearchView results={results} onFollow={handleFollow} onNavigate={openProfile} />
         ) : (
           <FeedView
             posts={activePosts}
@@ -145,6 +198,7 @@ export default function App() {
             onCreate={handleCreatePost}
             onLike={handleLike}
             onFollow={handleFollow}
+            onNavigate={openProfile}
           />
         )}
       </main>
@@ -231,12 +285,12 @@ function AuthScreen({ onLogin, onRegister }) {
   );
 }
 
-function Sidebar({ view, setView, user, onLogout }) {
+function Sidebar({ view, setView, user, onLogout, onOwnProfile }) {
   const items = [
-    ["feed", Home, "Feed"],
-    ["trending", TrendingUp, "Trending"],
-    ["profile", User, "Profile"],
-    ["search", Search, "Search"],
+    ["feed", Home, "Feed", () => setView("feed")],
+    ["trending", TrendingUp, "Trending", () => setView("trending")],
+    ["profile", User, "Profile", onOwnProfile],
+    ["search", Search, "Search", () => setView("search")],
   ];
 
   return (
@@ -245,15 +299,17 @@ function Sidebar({ view, setView, user, onLogout }) {
         <Music2 size={24} />
       </button>
       <nav>
-        {items.map(([key, Icon, label]) => (
-          <button key={key} className={view === key ? "active" : ""} onClick={() => setView(key)} title={label}>
+        {items.map(([key, Icon, label, action]) => (
+          <button key={key} className={view === key ? "active" : ""} onClick={action} title={label}>
             <Icon size={21} />
             <span>{label}</span>
           </button>
         ))}
       </nav>
       <div className="sidebar-user">
-        <Avatar user={user} />
+        <button className="avatar-button" onClick={onOwnProfile} title="Open your profile">
+          <Avatar user={user} />
+        </button>
         <span>{user.username}</span>
         <button onClick={onLogout} title="Logout">
           <LogOut size={18} />
@@ -263,14 +319,20 @@ function Sidebar({ view, setView, user, onLogout }) {
   );
 }
 
-function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow }) {
+function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate }) {
   return (
     <div className="content-grid">
       <section className="feed-column">
         {!isTrending && <Composer tracks={tracks} onCreate={onCreate} />}
         <div className="post-list">
           {posts.map((post, index) => (
-            <PostCard key={post.id} post={post} rank={isTrending ? index + 1 : null} onLike={onLike} />
+            <PostCard
+              key={post.id}
+              post={post}
+              rank={isTrending ? index + 1 : null}
+              onLike={onLike}
+              onNavigate={onNavigate}
+            />
           ))}
         </div>
       </section>
@@ -283,11 +345,13 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
         <Panel title="Suggested follows" icon={UserPlus}>
           {suggestions.slice(0, 4).map((user) => (
             <div className="suggestion-row" key={user.id}>
-              <Avatar user={user} />
-              <div>
+              <button className="avatar-button" onClick={() => onNavigate(user.id)} title={`Open ${user.username}`}>
+                <Avatar user={user} />
+              </button>
+              <button className="name-button" onClick={() => onNavigate(user.id)}>
                 <strong>{user.displayName}</strong>
                 <span>@{user.username}</span>
-              </div>
+              </button>
               <button onClick={() => onFollow(user.id)} title={`Follow ${user.username}`}>
                 <Plus size={16} />
               </button>
@@ -338,24 +402,26 @@ function Composer({ tracks, onCreate }) {
   );
 }
 
-function PostCard({ post, rank, onLike }) {
+function PostCard({ post, rank, onLike, onNavigate }) {
   return (
     <article className="post-card">
       {rank && <div className="rank-badge">#{rank}</div>}
       <img className="cover" src={post.track.coverUrl} alt={`${post.track.title} cover`} />
       <div className="post-body">
         <div className="post-meta">
-          <Avatar user={post.user} />
-          <div>
+          <button className="avatar-button" onClick={() => onNavigate(post.user.id)} title={`Open ${post.user.username}`}>
+            <Avatar user={post.user} />
+          </button>
+          <button className="profile-link" onClick={() => onNavigate(post.user.id)}>
             <strong>{post.user.displayName}</strong>
             <span>@{post.user.username} mixed {post.mood}</span>
-          </div>
+          </button>
         </div>
         <h2>{post.track.title}</h2>
-        <p className="artist">{post.track.artist} · {post.track.album}</p>
+        <p className="artist">{post.track.artist} - {post.track.album}</p>
         <p className="caption">{post.caption}</p>
         <div className="post-actions">
-          <button className={post.likedByMe ? "liked" : ""} onClick={() => onLike(post.id)} title="Like post">
+          <button className={post.likedByMe ? "liked" : ""} onClick={() => onLike(post.id)} title={post.likedByMe ? "Unlike post" : "Like post"}>
             <Heart size={18} fill={post.likedByMe ? "currentColor" : "none"} />
             {post.likeCount}
           </button>
@@ -367,10 +433,12 @@ function PostCard({ post, rank, onLike }) {
   );
 }
 
-function ProfileView({ profile, posts, onLike }) {
+function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow }) {
   if (!profile) {
     return null;
   }
+
+  const isOwnProfile = profile.id === currentUser.id;
 
   return (
     <div className="profile-layout">
@@ -385,6 +453,12 @@ function ProfileView({ profile, posts, onLike }) {
               <span key={genre}>{genre}</span>
             ))}
           </div>
+          {!isOwnProfile && (
+            <button className="follow-profile-button" onClick={() => onFollow(profile.id)}>
+              <UserPlus size={17} />
+              {profile.isFollowing ? "Following" : "Follow"}
+            </button>
+          )}
         </div>
         <div className="profile-stats">
           <div>
@@ -401,16 +475,41 @@ function ProfileView({ profile, posts, onLike }) {
           </div>
         </div>
       </section>
+
+      <div className="relationship-grid">
+        <Panel title="Followers" icon={Users}>
+          <RelationshipList users={profile.followerUsers || []} onNavigate={onNavigate} />
+        </Panel>
+        <Panel title="Following" icon={UserPlus}>
+          <RelationshipList users={profile.followingUsers || []} onNavigate={onNavigate} />
+        </Panel>
+      </div>
+
       <div className="post-list compact">
-        {posts.map((post) => (
-          <PostCard key={post.id} post={post} onLike={onLike} />
+        {(profile.posts || []).map((post) => (
+          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} />
         ))}
       </div>
     </div>
   );
 }
 
-function SearchView({ results, onFollow }) {
+function RelationshipList({ users, onNavigate }) {
+  if (!users.length) {
+    return <p className="empty-copy">No users yet.</p>;
+  }
+  return users.map((user) => (
+    <button className="relationship-user" key={user.id} onClick={() => onNavigate(user.id)}>
+      <Avatar user={user} />
+      <span>
+        <strong>{user.displayName}</strong>
+        <small>@{user.username}</small>
+      </span>
+    </button>
+  ));
+}
+
+function SearchView({ results, onFollow, onNavigate }) {
   return (
     <div className="search-grid">
       <Panel title="Tracks" icon={Music2}>
@@ -419,7 +518,7 @@ function SearchView({ results, onFollow }) {
             <img src={track.coverUrl} alt={`${track.title} cover`} />
             <div>
               <strong>{track.title}</strong>
-              <span>{track.artist} · {track.genre}</span>
+              <span>{track.artist} - {track.genre}</span>
             </div>
           </div>
         ))}
@@ -427,11 +526,13 @@ function SearchView({ results, onFollow }) {
       <Panel title="People" icon={User}>
         {results.users.map((user) => (
           <div className="suggestion-row" key={user.id}>
-            <Avatar user={user} />
-            <div>
+            <button className="avatar-button" onClick={() => onNavigate(user.id)} title={`Open ${user.username}`}>
+              <Avatar user={user} />
+            </button>
+            <button className="name-button" onClick={() => onNavigate(user.id)}>
               <strong>{user.displayName}</strong>
               <span>@{user.username}</span>
-            </div>
+            </button>
             <button onClick={() => onFollow(user.id)} title={`Follow ${user.username}`}>
               <Plus size={16} />
             </button>
