@@ -36,11 +36,13 @@ public final class VibeServer {
         }
         Database database = new Database(Paths.get(dbPath));
         VibeServer app = new VibeServer(database);
-        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+        String portEnv = System.getenv("PORT");
+        int port = (portEnv != null && !portEnv.isEmpty()) ? Integer.parseInt(portEnv) : 8080;
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/", app.new Router());
         server.setExecutor(null);
         server.start();
-        System.out.println("Vibe backend running at http://localhost:8080");
+        System.out.println("Vibe backend running on port " + port);
     }
 
     private final class Router implements HttpHandler {
