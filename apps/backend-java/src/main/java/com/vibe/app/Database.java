@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public final class Database {
     private final Connection connection;
@@ -128,6 +129,73 @@ public final class Database {
         statement.executeUpdate();
     }
 
+    public synchronized Map<String, Object> findOrCreateSpotifyUser(String spotifyId, String displayName, String usernameHint) throws SQLException {
+        PreparedStatement find = connection.prepareStatement("SELECT * FROM users WHERE spotify_id = ?");
+        find.setString(1, spotifyId);
+        ResultSet rs = find.executeQuery();
+        if (rs.next()) {
+            return userFromResult(rs, false);
+        }
+
+        String base = (usernameHint != null ? usernameHint : displayName)
+            .toLowerCase()
+            .replaceAll("[^a-z0-9_]", "")
+            .substring(0, Math.min(20, (usernameHint != null ? usernameHint : displayName).length()));
+        if (base.isEmpty()) base = "user";
+
+        String username = base;
+        int n = 1;
+        while (true) {
+            PreparedStatement check = connection.prepareStatement("SELECT COUNT(*) FROM users WHERE username = ?");
+            check.setString(1, username);
+            ResultSet checkRs = check.executeQuery();
+            if (checkRs.next() && checkRs.getLong(1) == 0) break;
+            username = base + n++;
+        }
+
+        PasswordUtil.PasswordRecord record = PasswordUtil.hashPassword(UUID.randomUUID().toString());
+        PreparedStatement insert = connection.prepareStatement(
+            "INSERT INTO users (username, display_name, avatar_key, bio, favorite_genres, password_salt, password_hash, spotify_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            Statement.RETURN_GENERATED_KEYS
+        );
+        String name = displayName != null && !displayName.trim().isEmpty() ? displayName : username;
+        insert.setString(1, username);
+        insert.setString(2, name);
+        insert.setString(3, avatarFor(username));
+        insert.setString(4, "Discovering music through Spotify.");
+        insert.setString(5, "");
+        insert.setString(6, record.salt);
+        insert.setString(7, record.hash);
+        insert.setString(8, spotifyId);
+        insert.executeUpdate();
+        ResultSet keys = insert.getGeneratedKeys();
+        long id = keys.next() ? keys.getLong(1) : 0L;
+        return findUserById(id);
+    }
+
+    public synchronized long findOrCreateSpotifyTrack(String spotifyId, String title, String artist, String album, String coverUrl, String previewUrl) throws SQLException {
+        PreparedStatement find = connection.prepareStatement("SELECT id FROM tracks WHERE spotify_id = ?");
+        find.setString(1, spotifyId);
+        ResultSet rs = find.executeQuery();
+        if (rs.next()) return rs.getLong("id");
+
+        PreparedStatement insert = connection.prepareStatement(
+            "INSERT INTO tracks (title, artist, album, genre, mood, cover_url, spotify_id, preview_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            Statement.RETURN_GENERATED_KEYS
+        );
+        insert.setString(1, title != null ? title : "Unknown");
+        insert.setString(2, artist != null ? artist : "Unknown");
+        insert.setString(3, album != null ? album : "Unknown");
+        insert.setString(4, "Spotify");
+        insert.setString(5, "fresh");
+        insert.setString(6, coverUrl != null ? coverUrl : "");
+        insert.setString(7, spotifyId);
+        insert.setString(8, previewUrl != null ? previewUrl : "");
+        insert.executeUpdate();
+        ResultSet keys = insert.getGeneratedKeys();
+        return keys.next() ? keys.getLong(1) : 0L;
+    }
+
     public synchronized List<Map<String, Object>> suggestions(long userId) throws SQLException {
         PreparedStatement statement = connection.prepareStatement(
             "SELECT u.id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, COUNT(*) AS score " +
@@ -212,7 +280,7 @@ public final class Database {
         String sql =
             "SELECT p.id, p.mood, p.caption, p.created_at, " +
             "u.id AS user_id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, " +
-            "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, " +
+            "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, t.spotify_id AS track_spotify_id, t.preview_url AS track_preview_url, " +
             "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count, " +
             "(SELECT COUNT(*) FROM likes lm WHERE lm.post_id = p.id AND lm.user_id = ?) AS liked_by_me " +
             "FROM posts p JOIN users u ON u.id = p.user_id JOIN tracks t ON t.id = p.track_id " +
@@ -232,7 +300,7 @@ public final class Database {
         String sql =
             "SELECT p.id, p.mood, p.caption, p.created_at, " +
             "u.id AS user_id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, " +
-            "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, " +
+            "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, t.spotify_id AS track_spotify_id, t.preview_url AS track_preview_url, " +
             "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count, " +
             "(SELECT COUNT(*) FROM likes lm WHERE lm.post_id = p.id AND lm.user_id = ?) AS liked_by_me " +
             "FROM posts p JOIN users u ON u.id = p.user_id JOIN tracks t ON t.id = p.track_id WHERE p.id = ?";
@@ -269,6 +337,8 @@ public final class Database {
         track.put("genre", rs.getString("genre"));
         track.put("mood", rs.getString("track_mood"));
         track.put("coverUrl", rs.getString("cover_url"));
+        track.put("spotifyId", rs.getString("track_spotify_id"));
+        track.put("previewUrl", rs.getString("track_preview_url"));
         post.put("track", track);
 
         return post;
@@ -338,6 +408,10 @@ public final class Database {
         for (String sql : statements) {
             statement.execute(sql);
         }
+        // Migrations for spotify_id columns (ignore if already added)
+        try { connection.createStatement().execute("ALTER TABLE users ADD COLUMN spotify_id TEXT"); } catch (SQLException ignored) {}
+        try { connection.createStatement().execute("ALTER TABLE tracks ADD COLUMN spotify_id TEXT"); } catch (SQLException ignored) {}
+        try { connection.createStatement().execute("ALTER TABLE tracks ADD COLUMN preview_url TEXT"); } catch (SQLException ignored) {}
     }
 
     private void seedIfEmpty() throws SQLException {

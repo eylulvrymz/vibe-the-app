@@ -82,6 +82,11 @@ public final class VibeServer {
             return;
         }
 
+        if ("POST".equals(method) && "/api/auth/spotify/connect".equals(path)) {
+            spotifyConnect(exchange);
+            return;
+        }
+
         if ("GET".equals(method) && "/api/feed".equals(path)) {
             long userId = optionalUser(exchange);
             sendJson(exchange, 200, Json.object("posts", database.feed(userId)));
@@ -91,7 +96,20 @@ public final class VibeServer {
         if ("POST".equals(method) && "/api/posts".equals(path)) {
             long userId = requireUser(exchange);
             Map<String, String> body = Json.parseObject(readBody(exchange));
-            long trackId = parseLong(body.get("trackId"), 1L);
+            long trackId;
+            String spotifyTrackId = body.get("spotifyTrackId");
+            if (spotifyTrackId != null && !spotifyTrackId.trim().isEmpty()) {
+                trackId = database.findOrCreateSpotifyTrack(
+                    spotifyTrackId,
+                    body.get("spotifyTitle"),
+                    body.get("spotifyArtist"),
+                    body.get("spotifyAlbum"),
+                    body.get("spotifyCoverUrl"),
+                    body.get("spotifyPreviewUrl")
+                );
+            } else {
+                trackId = parseLong(body.get("trackId"), 1L);
+            }
             Map<String, Object> post = database.createPost(userId, trackId, body.get("mood"), body.get("caption"));
             sendJson(exchange, 201, Json.object("post", post));
             return;
@@ -176,6 +194,16 @@ public final class VibeServer {
         }
         user.remove("passwordSalt");
         user.remove("passwordHash");
+        String token = createSession(((Number) user.get("id")).longValue());
+        sendJson(exchange, 200, Json.object("token", token, "user", user));
+    }
+
+    private void spotifyConnect(HttpExchange exchange) throws Exception {
+        Map<String, String> body = Json.parseObject(readBody(exchange));
+        String spotifyId = requireField(body, "spotifyId");
+        String displayName = requireField(body, "displayName");
+        String usernameHint = body.get("username");
+        Map<String, Object> user = database.findOrCreateSpotifyUser(spotifyId, displayName, usernameHint);
         String token = createSession(((Number) user.get("id")).longValue());
         sendJson(exchange, 200, Json.object("token", token, "user", user));
     }

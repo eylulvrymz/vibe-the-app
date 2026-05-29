@@ -4,6 +4,8 @@ import {
   Home,
   LogOut,
   Music2,
+  Pause,
+  Play,
   Plus,
   Search,
   Sparkles,
@@ -12,8 +14,9 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  connectSpotify,
   createPost,
   followUser,
   getFeed,
@@ -26,6 +29,7 @@ import {
   register,
   search,
 } from "./api.js";
+import { createPlayer, exchangeSpotifyCode, getSpotifyProfile, initiateSpotifyLogin, playTrack, searchSpotifyTracks } from "./spotify.js";
 
 const savedSession = JSON.parse(localStorage.getItem("vibe-session") || "null");
 const assetUrl = (path) => `${import.meta.env.BASE_URL}${path}`;
@@ -42,6 +46,60 @@ export default function App() {
   const [query, setQuery] = useState("synth");
   const [results, setResults] = useState({ tracks: [], users: [] });
   const [status, setStatus] = useState("");
+  const [spotifyError, setSpotifyError] = useState("");
+  const [player, setPlayer] = useState(null);
+  const [deviceId, setDeviceId] = useState(null);
+  const [playingTrackId, setPlayingTrackId] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const oauthError = params.get("error");
+    if (oauthError || code) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (!code || session) return;
+    (async () => {
+      try {
+        const spotifyToken = await exchangeSpotifyCode(code);
+        const profile = await getSpotifyProfile(spotifyToken);
+        const payload = await connectSpotify(
+          profile.id,
+          profile.display_name || profile.id,
+          profile.id
+        );
+        setSelectedProfileId(payload.user.id);
+        setSession({ token: payload.token, user: payload.user, offline: payload.offline, spotifyToken });
+        setStatus(payload.offline ? "Local demo (Spotify)" : "Connected via Spotify");
+      } catch (err) {
+        console.error("Spotify auth error:", err);
+        setSpotifyError(err?.message || "Spotify girişi başarısız. Lütfen tekrar deneyin.");
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const token = session?.spotifyToken;
+    if (!token) return;
+    let current = null;
+    (async () => {
+      try {
+        const { player: p, deviceId: id } = await createPlayer(token);
+        current = p;
+        p.addListener("player_state_changed", (state) => {
+          if (!state) { setIsPlaying(false); return; }
+          setIsPlaying(!state.paused);
+          setPlayingTrackId(state.track_window?.current_track?.id || null);
+        });
+        setPlayer(p);
+        setDeviceId(id);
+      } catch {
+        // Premium yoksa sessizce geç — play butonları gösterilmez
+      }
+    })();
+    return () => { if (current) current.disconnect(); };
+  }, [session?.spotifyToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!session) {
@@ -109,6 +167,19 @@ export default function App() {
     setProfile((current) => (current ? { ...current, posts: update(current.posts || []) } : current));
   }
 
+  async function handlePlay(spotifyTrackId) {
+    if (!deviceId || !session?.spotifyToken) return;
+    if (playingTrackId === spotifyTrackId) {
+      isPlaying ? player.pause() : player.resume();
+    } else {
+      try {
+        await playTrack(session.spotifyToken, deviceId, spotifyTrackId);
+      } catch {
+        setStatus("Çalma başlatılamadı — Spotify Premium gerekiyor olabilir.");
+      }
+    }
+  }
+
   async function handleSearch(event) {
     event.preventDefault();
     const payload = await search(session.token, query);
@@ -143,13 +214,18 @@ export default function App() {
     setProfile(null);
     setPosts([]);
     setTrending([]);
+    setPlayer(null);
+    setDeviceId(null);
+    setPlayingTrackId(null);
+    setIsPlaying(false);
   }
 
   if (!session) {
-    return <AuthScreen onLogin={handleLogin} onRegister={handleRegister} />;
+    return <AuthScreen onLogin={handleLogin} onRegister={handleRegister} spotifyError={spotifyError} />;
   }
 
   const activePosts = view === "trending" ? trending : posts;
+  const activeSpotifyId = isPlaying ? playingTrackId : null;
   const heading =
     view === "trending"
       ? "Trending now"
@@ -185,6 +261,8 @@ export default function App() {
             onLike={handleLike}
             onNavigate={openProfile}
             onFollow={handleFollow}
+            onPlay={deviceId ? handlePlay : null}
+            activeSpotifyId={activeSpotifyId}
           />
         ) : view === "search" ? (
           <SearchView results={results} onFollow={handleFollow} onNavigate={openProfile} />
@@ -199,6 +277,9 @@ export default function App() {
             onLike={handleLike}
             onFollow={handleFollow}
             onNavigate={openProfile}
+            spotifyToken={session.spotifyToken}
+            onPlay={deviceId ? handlePlay : null}
+            activeSpotifyId={activeSpotifyId}
           />
         )}
       </main>
@@ -206,7 +287,7 @@ export default function App() {
   );
 }
 
-function AuthScreen({ onLogin, onRegister }) {
+function AuthScreen({ onLogin, onRegister, spotifyError }) {
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({
     username: "luna",
@@ -215,6 +296,17 @@ function AuthScreen({ onLogin, onRegister }) {
     genres: "Synth Pop, Dream Pop, Electronic",
   });
   const [error, setError] = useState("");
+  const [spotifyLoading, setSpotifyLoading] = useState(false);
+
+  async function handleSpotifyLogin() {
+    setSpotifyLoading(true);
+    try {
+      await initiateSpotifyLogin();
+    } catch (err) {
+      setError(err.message);
+      setSpotifyLoading(false);
+    }
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -279,6 +371,17 @@ function AuthScreen({ onLogin, onRegister }) {
             <Sparkles size={18} />
             {mode === "login" ? "Enter Vibe" : "Create account"}
           </button>
+          <div className="spotify-auth-divider">or</div>
+          <button
+            type="button"
+            className="spotify-button"
+            onClick={handleSpotifyLogin}
+            disabled={spotifyLoading}
+          >
+            <Music2 size={18} />
+            {spotifyLoading ? "Yönlendiriliyor..." : "Spotify ile devam et"}
+          </button>
+          {spotifyError && <p className="error-text">{spotifyError}</p>}
         </form>
       </section>
     </div>
@@ -319,11 +422,11 @@ function Sidebar({ view, setView, user, onLogout, onOwnProfile }) {
   );
 }
 
-function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate }) {
+function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId }) {
   return (
     <div className="content-grid">
       <section className="feed-column">
-        {!isTrending && <Composer tracks={tracks} onCreate={onCreate} />}
+        {!isTrending && <Composer tracks={tracks} onCreate={onCreate} spotifyToken={spotifyToken} />}
         <div className="post-list">
           {posts.map((post, index) => (
             <PostCard
@@ -332,6 +435,8 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
               rank={isTrending ? index + 1 : null}
               onLike={onLike}
               onNavigate={onNavigate}
+              onPlay={onPlay}
+              activeSpotifyId={activeSpotifyId}
             />
           ))}
         </div>
@@ -363,37 +468,117 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
   );
 }
 
-function Composer({ tracks, onCreate }) {
-  const [trackId, setTrackId] = useState(1);
+function Composer({ tracks, onCreate, spotifyToken }) {
+  const [trackId, setTrackId] = useState("");
   const [mood, setMood] = useState("Late-night");
   const [caption, setCaption] = useState("This track is carrying the whole evening.");
-  const selectedTrack = useMemo(() => tracks.find((track) => track.id === Number(trackId)) || tracks[0], [tracks, trackId]);
+  const [spotifyQuery, setSpotifyQuery] = useState("");
+  const [spotifyResults, setSpotifyResults] = useState([]);
+  const [spotifyTrack, setSpotifyTrack] = useState(null);
+  const [searching, setSearching] = useState(false);
+
+  const localTrack = useMemo(
+    () => tracks.find((t) => t.id === Number(trackId)) || tracks[0],
+    [tracks, trackId]
+  );
+  const activeTrack = spotifyTrack || localTrack;
+
+  if (!activeTrack && !spotifyToken) return null;
+
+  async function doSpotifySearch(event) {
+    if (event) event.preventDefault();
+    if (!spotifyQuery.trim()) return;
+    setSearching(true);
+    try {
+      const results = await searchSpotifyTracks(spotifyToken, spotifyQuery);
+      setSpotifyResults(results);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function selectSpotifyTrack(track) {
+    setSpotifyTrack(track);
+    setSpotifyResults([]);
+    setSpotifyQuery("");
+  }
 
   async function submit(event) {
     event.preventDefault();
-    await onCreate({ trackId: Number(trackId), mood, caption });
+    const payload = spotifyTrack
+      ? {
+          spotifyTrackId: spotifyTrack.spotifyId,
+          spotifyTitle: spotifyTrack.title,
+          spotifyArtist: spotifyTrack.artist,
+          spotifyAlbum: spotifyTrack.album,
+          spotifyCoverUrl: spotifyTrack.coverUrl,
+          spotifyPreviewUrl: spotifyTrack.previewUrl || "",
+          mood,
+          caption,
+        }
+      : { trackId: localTrack?.id || 1, mood, caption };
+    await onCreate(payload);
     setCaption("");
-  }
-
-  if (!selectedTrack) {
-    return null;
+    setSpotifyTrack(null);
+    setSpotifyResults([]);
+    setSpotifyQuery("");
   }
 
   return (
     <form className="composer" onSubmit={submit}>
-      <img src={selectedTrack.coverUrl} alt={`${selectedTrack.title} cover`} />
+      <img src={activeTrack?.coverUrl || ""} alt={activeTrack?.title || "Track"} />
       <div className="composer-fields">
-        <div className="composer-row">
-          <select value={trackId} onChange={(event) => setTrackId(event.target.value)}>
-            {tracks.map((track) => (
-              <option key={track.id} value={track.id}>
-                {track.title} - {track.artist}
-              </option>
+        {spotifyToken && (
+          <div className="spotify-search-row">
+            <input
+              className="spotify-search-input"
+              value={spotifyQuery}
+              onChange={(e) => setSpotifyQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); doSpotifySearch(); } }}
+              placeholder="Spotify'da şarkı ara..."
+            />
+            <button type="button" className="spotify-search-btn" onClick={doSpotifySearch} disabled={searching}>
+              <Search size={15} />
+            </button>
+          </div>
+        )}
+        {spotifyResults.length > 0 && (
+          <div className="spotify-results">
+            {spotifyResults.map((track) => (
+              <button
+                key={track.spotifyId}
+                type="button"
+                className="spotify-result-item"
+                onClick={() => selectSpotifyTrack(track)}
+              >
+                <img src={track.coverUrl} alt={track.title} />
+                <div>
+                  <strong>{track.title}</strong>
+                  <span>{track.artist}</span>
+                </div>
+              </button>
             ))}
-          </select>
-          <input value={mood} onChange={(event) => setMood(event.target.value)} aria-label="Mood" />
+          </div>
+        )}
+        <div className="composer-row">
+          {spotifyTrack ? (
+            <div className="selected-track-chip">
+              <span>{spotifyTrack.title} — {spotifyTrack.artist}</span>
+              <button type="button" onClick={() => setSpotifyTrack(null)} title="Kaldır">×</button>
+            </div>
+          ) : (
+            <select
+              value={trackId || (localTrack?.id ?? "")}
+              onChange={(e) => setTrackId(e.target.value)}
+            >
+              {tracks.map((t) => (
+                <option key={t.id} value={t.id}>{t.title} - {t.artist}</option>
+              ))}
+            </select>
+          )}
+          <input value={mood} onChange={(e) => setMood(e.target.value)} aria-label="Mood" />
         </div>
-        <textarea value={caption} onChange={(event) => setCaption(event.target.value)} aria-label="Caption" />
+        <textarea value={caption} onChange={(e) => setCaption(e.target.value)} aria-label="Caption" />
       </div>
       <button className="icon-primary" title="Post vibe">
         <Plus size={20} />
@@ -402,7 +587,34 @@ function Composer({ tracks, onCreate }) {
   );
 }
 
-function PostCard({ post, rank, onLike, onNavigate }) {
+let _currentAudio = null;
+
+function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId }) {
+  const isActive = onPlay && post.track.spotifyId && post.track.spotifyId === activeSpotifyId;
+  const previewUrl = post.track.previewUrl;
+  const audioRef = useRef(null);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+
+  function togglePreview() {
+    if (!previewUrl) return;
+    if (!audioRef.current) {
+      audioRef.current = new Audio(previewUrl);
+      audioRef.current.addEventListener("ended", () => setPreviewPlaying(false));
+    }
+    if (previewPlaying) {
+      audioRef.current.pause();
+      setPreviewPlaying(false);
+    } else {
+      if (_currentAudio && _currentAudio !== audioRef.current) {
+        _currentAudio.pause();
+      }
+      _currentAudio = audioRef.current;
+      audioRef.current.currentTime = 0;
+      audioRef.current.play();
+      setPreviewPlaying(true);
+    }
+  }
+
   return (
     <article className="post-card">
       {rank && <div className="rank-badge">#{rank}</div>}
@@ -425,6 +637,11 @@ function PostCard({ post, rank, onLike, onNavigate }) {
             <Heart size={18} fill={post.likedByMe ? "currentColor" : "none"} />
             {post.likeCount}
           </button>
+          {previewUrl && (
+            <button className={`play-btn${previewPlaying ? " playing" : ""}`} onClick={togglePreview} title={previewPlaying ? "Duraklat" : "30sn önizleme"}>
+              {previewPlaying ? <Pause size={18} /> : <Play size={18} />}
+            </button>
+          )}
           <span>{post.track.genre}</span>
           <span>{formatDate(post.createdAt)}</span>
         </div>
@@ -433,7 +650,7 @@ function PostCard({ post, rank, onLike, onNavigate }) {
   );
 }
 
-function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow }) {
+function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onPlay, activeSpotifyId }) {
   if (!profile) {
     return null;
   }
@@ -487,7 +704,7 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow }) {
 
       <div className="post-list compact">
         {(profile.posts || []).map((post) => (
-          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} />
+          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} />
         ))}
       </div>
     </div>

@@ -142,6 +142,42 @@ export async function login(username, password) {
   }
 }
 
+export async function connectSpotify(spotifyId, displayName, username) {
+  try {
+    return await request("/auth/spotify/connect", {
+      method: "POST",
+      body: { spotifyId, displayName, username },
+    });
+  } catch {
+    const state = loadLocalState();
+    let user = state.users.find((u) => u.spotifyId === spotifyId);
+    if (!user) {
+      const base = (username || displayName || "user")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .slice(0, 20) || "user";
+      let name = base;
+      let n = 1;
+      while (state.users.some((u) => u.username.toLowerCase() === name)) {
+        name = base + n++;
+      }
+      user = {
+        id: Math.max(0, ...state.users.map((u) => u.id)) + 1,
+        username: name,
+        displayName: displayName || username || "Spotify User",
+        spotifyId,
+        avatarKey: "spark",
+        bio: "Spotify üzerinden katıldı.",
+        favoriteGenres: [],
+      };
+      state.users.push(user);
+      state.credentials[name] = "";
+      saveLocalState(state);
+    }
+    return { user, token: localTokenFor(user), offline: true };
+  }
+}
+
 export async function register(displayName, username, password, genres) {
   try {
     return await request("/auth/register", {
@@ -203,7 +239,26 @@ export async function createPost(token, payload) {
   } catch {
     const state = loadLocalState();
     const user = userFromToken(token, state);
-    const track = state.tracks.find((item) => item.id === Number(payload.trackId)) || state.tracks[0];
+    let track;
+    if (payload.spotifyTrackId) {
+      track = state.tracks.find((t) => t.spotifyId === payload.spotifyTrackId);
+      if (!track) {
+        track = {
+          id: Math.max(0, ...state.tracks.map((t) => t.id)) + 1,
+          spotifyId: payload.spotifyTrackId,
+          title: payload.spotifyTitle || "Unknown",
+          artist: payload.spotifyArtist || "Unknown",
+          album: payload.spotifyAlbum || "Unknown",
+          genre: "Spotify",
+          mood: "fresh",
+          coverUrl: payload.spotifyCoverUrl || "",
+          previewUrl: payload.spotifyPreviewUrl || "",
+        };
+        state.tracks.push(track);
+      }
+    } else {
+      track = state.tracks.find((item) => item.id === Number(payload.trackId)) || state.tracks[0];
+    }
     const post = {
       id: Math.max(...state.posts.map((item) => item.id)) + 1,
       user,
