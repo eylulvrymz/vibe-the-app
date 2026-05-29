@@ -15,7 +15,6 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +22,6 @@ import java.util.UUID;
 
 public final class VibeServer {
     private final Database database;
-    private final Map<String, Long> sessions = new HashMap<String, Long>();
 
     private VibeServer(Database database) {
         this.database = database;
@@ -258,9 +256,9 @@ public final class VibeServer {
         sendJson(exchange, 200, Json.object("token", token, "user", user));
     }
 
-    private String createSession(long userId) {
+    private String createSession(long userId) throws Exception {
         String token = UUID.randomUUID().toString().replace("-", "");
-        sessions.put(token, userId);
+        database.saveSession(token, userId);
         return token;
     }
 
@@ -269,8 +267,11 @@ public final class VibeServer {
         if (header == null || !header.startsWith("Bearer ")) {
             return 0L;
         }
-        Long userId = sessions.get(header.substring("Bearer ".length()).trim());
-        return userId == null ? 0L : userId.longValue();
+        try {
+            return database.getUserIdForToken(header.substring("Bearer ".length()).trim());
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     private long requireUser(HttpExchange exchange) throws ApiException {

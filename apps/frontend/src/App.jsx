@@ -636,6 +636,7 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
   const [comments, setComments] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [localCommentCount, setLocalCommentCount] = useState(post.commentCount || 0);
 
   const isPostOwner = currentUser && post.user.id === currentUser.id;
 
@@ -652,6 +653,7 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
     setSubmitting(true);
     const data = await addComment(token, post.id, commentText.trim(), currentUser);
     setComments((prev) => [...(prev || []), data.comment]);
+    setLocalCommentCount((n) => n + 1);
     setCommentText("");
     setSubmitting(false);
   }
@@ -659,6 +661,7 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
   async function handleDeleteComment(commentId) {
     await deleteComment(token, post.id, commentId);
     setComments((prev) => prev.filter((c) => c.id !== commentId));
+    setLocalCommentCount((n) => Math.max(0, n - 1));
   }
 
   return (
@@ -698,7 +701,7 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
           )}
           <button className="comment-btn" onClick={loadComments} title="Comments">
             <MessageSquare size={18} />
-            {post.commentCount > 0 && <span>{post.commentCount + (comments ? comments.length - post.commentCount : 0)}</span>}
+            <span>{localCommentCount}</span>
           </button>
           <span>{post.track.genre}</span>
           <span>{formatDate(post.createdAt)}</span>

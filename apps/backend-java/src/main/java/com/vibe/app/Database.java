@@ -473,6 +473,20 @@ public final class Database {
         return rs.next() ? rs.getLong(1) : 0L;
     }
 
+    public synchronized void saveSession(String token, long userId) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement("INSERT OR REPLACE INTO sessions (token, user_id) VALUES (?, ?)");
+        statement.setString(1, token);
+        statement.setLong(2, userId);
+        statement.executeUpdate();
+    }
+
+    public synchronized long getUserIdForToken(String token) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement("SELECT user_id FROM sessions WHERE token = ?");
+        statement.setString(1, token);
+        ResultSet rs = statement.executeQuery();
+        return rs.next() ? rs.getLong("user_id") : 0L;
+    }
+
     private void createSchema() throws SQLException {
         List<String> statements = Arrays.asList(
             "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, avatar_key TEXT NOT NULL, bio TEXT NOT NULL, favorite_genres TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
@@ -480,7 +494,8 @@ public final class Database {
             "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, track_id INTEGER NOT NULL REFERENCES tracks(id), mood TEXT NOT NULL, caption TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
             "CREATE TABLE IF NOT EXISTS likes (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, post_id))",
             "CREATE TABLE IF NOT EXISTS follows (follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (follower_id, following_id), CHECK (follower_id <> following_id))",
-            "CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+            "CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+            "CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"
         );
         Statement statement = connection.createStatement();
         for (String sql : statements) {
