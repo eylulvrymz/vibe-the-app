@@ -503,20 +503,6 @@ public final class Database {
         insertUser("kai", "Kai Rivers", "wave", "A guitar riff loyalist with a weakness for big bridges.", "Indie Rock, Post-Punk, Shoegaze");
         insertUser("iris", "Iris Lane", "aura", "Searches for songs that feel cinematic before sunrise.", "Ambient Pop, Trip-Hop, Electronic");
 
-        insertTrack("Afterglow Loop", "Mira Vale", "City Lights EP", "Synth Pop", "glowing", "/assets/covers/afterglow-loop.png");
-        insertTrack("Blue Hour Signal", "North Arcade", "Late Platform", "Indie Pop", "restless", "/assets/covers/blue-hour-signal.png");
-        insertTrack("Velvet Static", "Sena Grey", "Soft Voltage", "Alt R&B", "magnetic", "/assets/covers/velvet-static.png");
-        insertTrack("Glass Coast", "The Frameshift", "Borrowed Weather", "Indie Rock", "open-road", "/assets/covers/glass-coast.png");
-        insertTrack("Low Orbit", "Iris Mode", "Night Maps", "Electronic", "focused", "/assets/covers/low-orbit.png");
-        insertTrack("Sunday Frequency", "June Market", "Small Rooms", "Lo-Fi", "warm", "/assets/covers/sunday-frequency.png");
-
-        insertPost(1, 1, "Late-night", "This one feels like walking home while the whole city is humming.");
-        insertPost(2, 3, "Magnetic", "Bassline of the week. No contest.");
-        insertPost(3, 2, "Restless", "For anyone turning a bus ride into a music video.");
-        insertPost(4, 4, "Open-road", "The chorus opens the windows by itself.");
-        insertPost(5, 5, "Focus", "Keeping this on loop while I build the next playlist.");
-        insertPost(1, 6, "Warm", "Soft drums, tiny room, big feeling.");
-
         follow(1, 2);
         follow(1, 3);
         follow(2, 3);
@@ -527,16 +513,6 @@ public final class Database {
         follow(5, 1);
         follow(5, 2);
 
-        likePost(1, 2);
-        likePost(1, 4);
-        likePost(2, 1);
-        likePost(2, 3);
-        likePost(3, 1);
-        likePost(3, 2);
-        likePost(4, 2);
-        likePost(4, 5);
-        likePost(5, 1);
-        likePost(5, 3);
     }
 
     private void insertUser(String username, String displayName, String avatarKey, String bio, String genres) throws SQLException {
