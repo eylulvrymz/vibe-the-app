@@ -36,6 +36,9 @@ jobs:
 
       - name: Build GitHub Pages bundle
         run: npm run build:pages
+        env:
+          VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
+          VITE_SPOTIFY_REDIRECT_URI: https://eylulvrymz.github.io/vibe-the-app/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
