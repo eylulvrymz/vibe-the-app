@@ -39,6 +39,7 @@ jobs:
         env:
           VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
           VITE_SPOTIFY_REDIRECT_URI: https://eylulvrymz.github.io/vibe-the-app/
+          VITE_API_BASE: https://vibe-the-app-production.up.railway.app/api
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
