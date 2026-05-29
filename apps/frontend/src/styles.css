@@ -1011,6 +1011,62 @@ button {
   margin: 8px 0 4px;
 }
 
+.comment-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.7;
+}
+.comment-btn:hover { opacity: 1; }
+
+.comments-section {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.comment-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.comment-body strong { font-size: 13px; }
+.comment-body span { opacity: 0.85; }
+
+.comment-form {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.comment-form input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.comment-form button {
+  background: var(--accent);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: #000;
+}
+
 .follow-profile-button.following {
   background: transparent;
   border: 1px solid var(--border);

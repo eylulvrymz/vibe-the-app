@@ -304,6 +304,22 @@ export async function getProfile(token, userId) {
   }
 }
 
+export async function getComments(token, postId) {
+  try {
+    return await request(`/posts/${postId}/comments`, { token });
+  } catch {
+    return { comments: [] };
+  }
+}
+
+export async function addComment(token, postId, content) {
+  try {
+    return await request(`/posts/${postId}/comments`, { method: "POST", token, body: { content } });
+  } catch {
+    return { comment: { id: Date.now(), content, createdAt: new Date().toISOString(), user: { username: "you", displayName: "You", avatarKey: "U" } } };
+  }
+}
+
 export async function followUser(token, userId) {
   try {
     return await request(`/users/${userId}/follow`, { method: "POST", token });

@@ -3,6 +3,7 @@ import {
   Heart,
   Home,
   LogOut,
+  MessageSquare,
   Music2,
   Pause,
   Play,
@@ -16,9 +17,11 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  addComment,
   connectSpotify,
   createPost,
   followUser,
+  getComments,
   unfollowUser,
   getFeed,
   getProfile,
@@ -275,6 +278,7 @@ export default function App() {
             onUnfollow={handleUnfollow}
             onPlay={deviceId ? handlePlay : null}
             activeSpotifyId={activeSpotifyId}
+            token={session.token}
           />
         ) : view === "search" ? (
           <SearchView results={results} onFollow={handleFollow} onUnfollow={handleUnfollow} onNavigate={openProfile} />
@@ -292,6 +296,7 @@ export default function App() {
             spotifyToken={session.spotifyToken}
             onPlay={deviceId ? handlePlay : null}
             activeSpotifyId={activeSpotifyId}
+            token={session.token}
           />
         )}
       </main>
@@ -434,7 +439,7 @@ function Sidebar({ view, setView, user, onLogout, onOwnProfile }) {
   );
 }
 
-function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId }) {
+function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId, token }) {
   return (
     <div className="content-grid">
       <section className="feed-column">
@@ -449,6 +454,7 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
               onNavigate={onNavigate}
               onPlay={onPlay}
               activeSpotifyId={activeSpotifyId}
+              token={token}
             />
           ))}
         </div>
@@ -608,9 +614,30 @@ function Composer({ tracks, onCreate, spotifyToken }) {
   );
 }
 
-function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId }) {
+function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, token }) {
   const spotifyId = post.track.spotifyId;
   const [showEmbed, setShowEmbed] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState(null);
+  const [commentText, setCommentText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function loadComments() {
+    if (comments !== null) { setShowComments((p) => !p); return; }
+    const data = await getComments(token, post.id);
+    setComments(data.comments || []);
+    setShowComments(true);
+  }
+
+  async function submitComment(e) {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    setSubmitting(true);
+    const data = await addComment(token, post.id, commentText.trim());
+    setComments((prev) => [...(prev || []), data.comment]);
+    setCommentText("");
+    setSubmitting(false);
+  }
 
   return (
     <article className="post-card">
@@ -647,15 +674,45 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId }) {
               {showEmbed ? <Pause size={18} /> : <Play size={18} />}
             </button>
           )}
+          <button className="comment-btn" onClick={loadComments} title="Comments">
+            <MessageSquare size={18} />
+            {post.commentCount > 0 && <span>{post.commentCount + (comments ? comments.length - post.commentCount : 0)}</span>}
+          </button>
           <span>{post.track.genre}</span>
           <span>{formatDate(post.createdAt)}</span>
         </div>
+        {showComments && (
+          <div className="comments-section">
+            {(comments || []).map((c) => (
+              <div className="comment-row" key={c.id}>
+                <Avatar user={c.user} />
+                <div className="comment-body">
+                  <strong>{c.user.displayName}</strong>
+                  <span>{c.content}</span>
+                </div>
+              </div>
+            ))}
+            {token && (
+              <form className="comment-form" onSubmit={submitComment}>
+                <input
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add a comment..."
+                  disabled={submitting}
+                />
+                <button type="submit" disabled={submitting || !commentText.trim()}>
+                  <Plus size={16} />
+                </button>
+              </form>
+            )}
+          </div>
+        )}
       </div>
     </article>
   );
 }
 
-function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId }) {
+function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token }) {
   if (!profile) {
     return null;
   }
@@ -712,7 +769,7 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
 
       <div className="post-list compact">
         {(profile.posts || []).map((post) => (
-          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} />
+          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} token={token} />
         ))}
       </div>
     </div>

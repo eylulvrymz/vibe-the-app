@@ -141,6 +141,27 @@ public final class VibeServer {
             return;
         }
 
+        if ("GET".equals(method) && path.matches("/api/posts/\\d+/comments")) {
+            requireUser(exchange);
+            long postId = Long.parseLong(path.substring("/api/posts/".length(), path.length() - "/comments".length()));
+            sendJson(exchange, 200, Json.object("comments", database.getComments(postId)));
+            return;
+        }
+
+        if ("POST".equals(method) && path.matches("/api/posts/\\d+/comments")) {
+            long userId = requireUser(exchange);
+            long postId = Long.parseLong(path.substring("/api/posts/".length(), path.length() - "/comments".length()));
+            Map<String, String> body = Json.parseObject(readBody(exchange));
+            String content = body.get("content");
+            if (content == null || content.trim().isEmpty()) {
+                sendJson(exchange, 400, Json.object("error", "Content is required"));
+                return;
+            }
+            Map<String, Object> comment = database.addComment(userId, postId, content.trim());
+            sendJson(exchange, 201, Json.object("comment", comment));
+            return;
+        }
+
         if ("POST".equals(method) && path.matches("/api/users/\\d+/follow")) {
             long currentUserId = requireUser(exchange);
             long followingId = Long.parseLong(path.substring("/api/users/".length(), path.length() - "/follow".length()));
