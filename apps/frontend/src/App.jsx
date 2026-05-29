@@ -636,6 +636,7 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
   const [comments, setComments] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [commentError, setCommentError] = useState("");
   const [localCommentCount, setLocalCommentCount] = useState(post.commentCount || 0);
 
   const isPostOwner = currentUser && post.user.id === currentUser.id;
@@ -651,11 +652,17 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
     e.preventDefault();
     if (!commentText.trim()) return;
     setSubmitting(true);
-    const data = await addComment(token, post.id, commentText.trim(), currentUser);
-    setComments((prev) => [...(prev || []), data.comment]);
-    setLocalCommentCount((n) => n + 1);
-    setCommentText("");
-    setSubmitting(false);
+    setCommentError("");
+    try {
+      const data = await addComment(token, post.id, commentText.trim(), currentUser);
+      setComments((prev) => [...(prev || []), data.comment]);
+      setLocalCommentCount((n) => n + 1);
+      setCommentText("");
+    } catch {
+      setCommentError("Session expired — please log out and log back in.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleDeleteComment(commentId) {
@@ -743,6 +750,7 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
                 </button>
               </form>
             )}
+            {commentError && <p className="comment-error">{commentError}</p>}
           </div>
         )}
       </div>

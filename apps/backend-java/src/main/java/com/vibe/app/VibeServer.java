@@ -158,7 +158,6 @@ public final class VibeServer {
         }
 
         if ("GET".equals(method) && path.matches("/api/posts/\\d+/comments")) {
-            requireUser(exchange);
             long postId = Long.parseLong(path.substring("/api/posts/".length(), path.length() - "/comments".length()));
             sendJson(exchange, 200, Json.object("comments", database.getComments(postId)));
             return;
