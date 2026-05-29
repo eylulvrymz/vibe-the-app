@@ -24,7 +24,7 @@ async function buildPkce() {
 export async function initiateSpotifyLogin() {
   if (!CLIENT_ID) {
     throw new Error(
-      "Spotify Client ID ayarlanmamış. apps/frontend/.env dosyasına VITE_SPOTIFY_CLIENT_ID ekleyin."
+      "Spotify Client ID is not set. Add VITE_SPOTIFY_CLIENT_ID to apps/frontend/.env"
     );
   }
   const { verifier, challenge } = await buildPkce();
@@ -42,7 +42,7 @@ export async function initiateSpotifyLogin() {
 
 export async function exchangeSpotifyCode(code) {
   const verifier = sessionStorage.getItem(VERIFIER_KEY);
-  if (!verifier) throw new Error("PKCE doğrulayıcısı bulunamadı — giriş akışını yeniden başlatın");
+  if (!verifier) throw new Error("PKCE verifier not found — please restart the login flow");
   sessionStorage.removeItem(VERIFIER_KEY);
   const response = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -57,11 +57,11 @@ export async function exchangeSpotifyCode(code) {
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error_description || "Spotify token alınamadı");
+    throw new Error(err.error_description || "Failed to obtain Spotify token");
   }
   const data = await response.json();
   console.log("[Spotify] token exchange response:", data);
-  if (!data.access_token) throw new Error(`Token alınamadı: ${data.error || JSON.stringify(data)}`);
+  if (!data.access_token) throw new Error(`Token error: ${data.error || JSON.stringify(data)}`);
   return data.access_token;
 }
 
@@ -72,7 +72,7 @@ export async function getSpotifyProfile(accessToken) {
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     console.error("[Spotify] /v1/me raw response:", response.status, response.headers.get("content-type"), text);
-    throw new Error(`Spotify profili alınamadı (${response.status}): ${text || "(boş)"}`);
+    throw new Error(`Failed to fetch Spotify profile (${response.status}): ${text || "(empty)"}`);
   }
   return response.json();
 }
@@ -99,13 +99,13 @@ export async function createPlayer(accessToken) {
       getOAuthToken: (cb) => cb(accessToken),
       volume: 0.6,
     });
-    const timer = setTimeout(() => reject(new Error("Bağlantı zaman aşımına uğradı")), 10000);
+    const timer = setTimeout(() => reject(new Error("Connection timed out")), 10000);
     const done = (result) => { clearTimeout(timer); result instanceof Error ? reject(result) : resolve(result); };
     player.addListener("ready", ({ device_id }) => done({ player, deviceId: device_id }));
-    player.addListener("not_ready", () => done(new Error("Player hazır değil")));
+    player.addListener("not_ready", () => done(new Error("Player not ready")));
     player.addListener("initialization_error", ({ message }) => done(new Error(message)));
     player.addListener("authentication_error", ({ message }) => done(new Error(message)));
-    player.addListener("account_error", () => done(new Error("Spotify Premium gerekli")));
+    player.addListener("account_error", () => done(new Error("Spotify Premium required")));
     player.connect();
   });
 }
@@ -116,7 +116,7 @@ export async function playTrack(accessToken, deviceId, spotifyTrackId) {
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ uris: [`spotify:track:${spotifyTrackId}`] }),
   });
-  if (!res.ok && res.status !== 204) throw new Error("Çalma başlatılamadı");
+  if (!res.ok && res.status !== 204) throw new Error("Failed to start playback");
 }
 
 export async function searchSpotifyTracks(accessToken, query) {

@@ -75,7 +75,7 @@ export default function App() {
         setStatus(payload.offline ? "Local demo (Spotify)" : "Connected via Spotify");
       } catch (err) {
         console.error("Spotify auth error:", err);
-        setSpotifyError(err?.message || "Spotify girişi başarısız. Lütfen tekrar deneyin.");
+        setSpotifyError(err?.message || "Spotify login failed. Please try again.");
       }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -176,7 +176,7 @@ export default function App() {
       try {
         await playTrack(session.spotifyToken, deviceId, spotifyTrackId);
       } catch {
-        setStatus("Çalma başlatılamadı — Spotify Premium gerekiyor olabilir.");
+        setStatus("Playback failed — Spotify Premium may be required.");
       }
     }
   }
@@ -391,7 +391,7 @@ function AuthScreen({ onLogin, onRegister, spotifyError }) {
             disabled={spotifyLoading}
           >
             <Music2 size={18} />
-            {spotifyLoading ? "Yönlendiriliyor..." : "Spotify ile devam et"}
+            {spotifyLoading ? "Redirecting..." : "Continue with Spotify"}
           </button>
           {spotifyError && <p className="error-text">{spotifyError}</p>}
         </form>
@@ -497,16 +497,25 @@ function Composer({ tracks, onCreate, spotifyToken }) {
 
   if (!activeTrack && !spotifyToken) return null;
 
-  async function doSpotifySearch(event) {
-    if (event) event.preventDefault();
-    if (!spotifyQuery.trim()) return;
+  const searchTimerRef = useRef(null);
+
+  async function doSpotifySearch(q) {
+    const query = (q ?? spotifyQuery).trim();
+    if (!query) { setSpotifyResults([]); return; }
     setSearching(true);
     try {
-      const results = await searchSpotifyTracks(spotifyToken, spotifyQuery);
+      const results = await searchSpotifyTracks(spotifyToken, query);
       setSpotifyResults(results);
     } finally {
       setSearching(false);
     }
+  }
+
+  function handleSpotifyQueryChange(e) {
+    const val = e.target.value;
+    setSpotifyQuery(val);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => doSpotifySearch(val), 350);
   }
 
   function selectSpotifyTrack(track) {
@@ -545,11 +554,11 @@ function Composer({ tracks, onCreate, spotifyToken }) {
             <input
               className="spotify-search-input"
               value={spotifyQuery}
-              onChange={(e) => setSpotifyQuery(e.target.value)}
+              onChange={handleSpotifyQueryChange}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); doSpotifySearch(); } }}
-              placeholder="Spotify'da şarkı ara..."
+              placeholder="Search a track on Spotify..."
             />
-            <button type="button" className="spotify-search-btn" onClick={doSpotifySearch} disabled={searching}>
+            <button type="button" className="spotify-search-btn" onClick={() => doSpotifySearch()} disabled={searching}>
               <Search size={15} />
             </button>
           </div>
@@ -576,7 +585,7 @@ function Composer({ tracks, onCreate, spotifyToken }) {
           {spotifyTrack ? (
             <div className="selected-track-chip">
               <span>{spotifyTrack.title} — {spotifyTrack.artist}</span>
-              <button type="button" onClick={() => setSpotifyTrack(null)} title="Kaldır">×</button>
+              <button type="button" onClick={() => setSpotifyTrack(null)} title="Remove">×</button>
             </div>
           ) : (
             <select
@@ -650,7 +659,7 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId }) {
             {post.likeCount}
           </button>
           {previewUrl && (
-            <button className={`play-btn${previewPlaying ? " playing" : ""}`} onClick={togglePreview} title={previewPlaying ? "Duraklat" : "30sn önizleme"}>
+            <button className={`play-btn${previewPlaying ? " playing" : ""}`} onClick={togglePreview} title={previewPlaying ? "Pause" : "30s preview"}>
               {previewPlaying ? <Pause size={18} /> : <Play size={18} />}
             </button>
           )}
@@ -688,7 +697,7 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
               onClick={() => profile.isFollowing ? onUnfollow(profile.id) : onFollow(profile.id)}
             >
               <UserPlus size={17} />
-              {profile.isFollowing ? "Takipten çık" : "Takip et"}
+              {profile.isFollowing ? "Unfollow" : "Follow"}
             </button>
           )}
         </div>
@@ -766,11 +775,11 @@ function SearchView({ results, onFollow, onUnfollow, onNavigate }) {
               <span>@{user.username}</span>
             </button>
             {user.isFollowing ? (
-              <button className="unfollow-btn" onClick={() => onUnfollow(user.id)} title="Takipten çık">
+              <button className="unfollow-btn" onClick={() => onUnfollow(user.id)} title="Unfollow">
                 <Users size={16} />
               </button>
             ) : (
-              <button onClick={() => onFollow(user.id)} title={`Takip et`}>
+              <button onClick={() => onFollow(user.id)} title="Follow">
                 <Plus size={16} />
               </button>
             )}
