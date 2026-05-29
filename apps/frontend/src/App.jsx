@@ -356,7 +356,7 @@ function AuthScreen({ onLogin, onRegister, spotifyError }) {
     <div className="auth-shell">
       <section className="auth-visual">
         <div className="brand-mark">
-          <Music2 size={32} />
+          <img src={assetUrl("assets/vibe-logo.png")} alt="Vibe" />
         </div>
         <h1>Vibe</h1>
         <p>Post the track, mood, and moment before it disappears.</p>
@@ -429,7 +429,7 @@ function Sidebar({ view, setView, user, onLogout, onOwnProfile }) {
   return (
     <aside className="sidebar">
       <button className="logo-button" onClick={() => setView("feed")} title="Vibe home">
-        <Music2 size={24} />
+        <img src={assetUrl("assets/vibe-logo.png")} alt="Vibe" />
       </button>
       <nav>
         {items.map(([key, Icon, label, action]) => (

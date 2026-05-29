@@ -64,8 +64,17 @@ button {
 }
 
 .logo-button {
-  background: #2dd4bf;
-  color: #061109;
+  background: transparent;
+  overflow: hidden;
+  padding: 2px;
+}
+
+.logo-button img,
+.brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .sidebar nav {
@@ -521,11 +530,10 @@ button {
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
-  color: #061109;
-  background: #2dd4bf;
+  width: 96px;
+  height: 96px;
   border-radius: 8px;
+  overflow: hidden;
 }
 
 .auth-visual p {
