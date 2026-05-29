@@ -141,6 +141,24 @@ public final class VibeServer {
             return;
         }
 
+        if ("DELETE".equals(method) && path.matches("/api/posts/\\d+/comments/\\d+")) {
+            long userId = requireUser(exchange);
+            String[] parts = path.split("/");
+            long postId = Long.parseLong(parts[3]);
+            long commentId = Long.parseLong(parts[5]);
+            boolean deleted = database.deleteComment(userId, postId, commentId);
+            sendJson(exchange, deleted ? 200 : 403, Json.object("ok", deleted));
+            return;
+        }
+
+        if ("DELETE".equals(method) && path.matches("/api/posts/\\d+")) {
+            long userId = requireUser(exchange);
+            long postId = Long.parseLong(path.substring("/api/posts/".length()));
+            boolean deleted = database.deletePost(userId, postId);
+            sendJson(exchange, deleted ? 200 : 403, Json.object("ok", deleted));
+            return;
+        }
+
         if ("GET".equals(method) && path.matches("/api/posts/\\d+/comments")) {
             requireUser(exchange);
             long postId = Long.parseLong(path.substring("/api/posts/".length(), path.length() - "/comments".length()));

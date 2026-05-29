@@ -1011,6 +1011,19 @@ button {
   margin: 8px 0 4px;
 }
 
+.delete-btn {
+  opacity: 0;
+  color: var(--muted);
+  transition: opacity 0.15s, color 0.15s;
+  margin-left: auto;
+}
+.post-card:hover .delete-btn,
+.comment-row:hover .delete-btn {
+  opacity: 0.5;
+}
+.delete-btn:hover { opacity: 1 !important; color: #e53e3e; }
+.comment-delete { margin-left: auto; }
+
 .comment-btn {
   display: flex;
   align-items: center;

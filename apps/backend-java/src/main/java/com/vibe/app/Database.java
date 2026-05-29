@@ -129,6 +129,26 @@ public final class Database {
         statement.executeUpdate();
     }
 
+    public synchronized boolean deletePost(long userId, long postId) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement("DELETE FROM posts WHERE id = ? AND user_id = ?");
+        statement.setLong(1, postId);
+        statement.setLong(2, userId);
+        return statement.executeUpdate() > 0;
+    }
+
+    public synchronized boolean deleteComment(long userId, long postId, long commentId) throws SQLException {
+        // Allow deletion by comment author OR post author
+        PreparedStatement statement = connection.prepareStatement(
+            "DELETE FROM comments WHERE id = ? AND post_id = ? AND (user_id = ? OR ? IN (SELECT user_id FROM posts WHERE id = ?))"
+        );
+        statement.setLong(1, commentId);
+        statement.setLong(2, postId);
+        statement.setLong(3, userId);
+        statement.setLong(4, userId);
+        statement.setLong(5, postId);
+        return statement.executeUpdate() > 0;
+    }
+
     public synchronized Map<String, Object> addComment(long userId, long postId, String content) throws SQLException {
         PreparedStatement insert = connection.prepareStatement(
             "INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)",

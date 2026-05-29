@@ -312,11 +312,27 @@ export async function getComments(token, postId) {
   }
 }
 
-export async function addComment(token, postId, content) {
+export async function addComment(token, postId, content, currentUser) {
   try {
     return await request(`/posts/${postId}/comments`, { method: "POST", token, body: { content } });
   } catch {
-    return { comment: { id: Date.now(), content, createdAt: new Date().toISOString(), user: { username: "you", displayName: "You", avatarKey: "U" } } };
+    return { comment: { id: Date.now(), content, createdAt: new Date().toISOString(), user: currentUser || { username: "you", displayName: "You", avatarKey: "U" } } };
+  }
+}
+
+export async function deletePost(token, postId) {
+  try {
+    return await request(`/posts/${postId}`, { method: "DELETE", token });
+  } catch {
+    return { ok: true, offline: true };
+  }
+}
+
+export async function deleteComment(token, postId, commentId) {
+  try {
+    return await request(`/posts/${postId}/comments/${commentId}`, { method: "DELETE", token });
+  } catch {
+    return { ok: true, offline: true };
   }
 }
 
