@@ -608,33 +608,9 @@ function Composer({ tracks, onCreate, spotifyToken }) {
   );
 }
 
-let _currentAudio = null;
-
 function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId }) {
-  const isActive = onPlay && post.track.spotifyId && post.track.spotifyId === activeSpotifyId;
-  const previewUrl = post.track.previewUrl;
-  const audioRef = useRef(null);
-  const [previewPlaying, setPreviewPlaying] = useState(false);
-
-  function togglePreview() {
-    if (!previewUrl) return;
-    if (!audioRef.current) {
-      audioRef.current = new Audio(previewUrl);
-      audioRef.current.addEventListener("ended", () => setPreviewPlaying(false));
-    }
-    if (previewPlaying) {
-      audioRef.current.pause();
-      setPreviewPlaying(false);
-    } else {
-      if (_currentAudio && _currentAudio !== audioRef.current) {
-        _currentAudio.pause();
-      }
-      _currentAudio = audioRef.current;
-      audioRef.current.currentTime = 0;
-      audioRef.current.play();
-      setPreviewPlaying(true);
-    }
-  }
+  const spotifyId = post.track.spotifyId;
+  const [showEmbed, setShowEmbed] = useState(false);
 
   return (
     <article className="post-card">
@@ -653,14 +629,22 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId }) {
         <h2>{post.track.title}</h2>
         <p className="artist">{post.track.artist} - {post.track.album}</p>
         <p className="caption">{post.caption}</p>
+        {showEmbed && spotifyId && (
+          <iframe
+            className="spotify-embed"
+            src={`https://open.spotify.com/embed/track/${spotifyId}?utm_source=generator&theme=0`}
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+          />
+        )}
         <div className="post-actions">
           <button className={post.likedByMe ? "liked" : ""} onClick={() => onLike(post.id)} title={post.likedByMe ? "Unlike post" : "Like post"}>
             <Heart size={18} fill={post.likedByMe ? "currentColor" : "none"} />
             {post.likeCount}
           </button>
-          {previewUrl && (
-            <button className={`play-btn${previewPlaying ? " playing" : ""}`} onClick={togglePreview} title={previewPlaying ? "Pause" : "30s preview"}>
-              {previewPlaying ? <Pause size={18} /> : <Play size={18} />}
+          {spotifyId && (
+            <button className={`play-btn${showEmbed ? " playing" : ""}`} onClick={() => setShowEmbed((p) => !p)} title={showEmbed ? "Hide player" : "Play preview"}>
+              {showEmbed ? <Pause size={18} /> : <Play size={18} />}
             </button>
           )}
           <span>{post.track.genre}</span>

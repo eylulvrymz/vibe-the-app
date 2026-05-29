@@ -1003,6 +1003,14 @@ button {
   }
 }
 
+.spotify-embed {
+  width: 100%;
+  height: 80px;
+  border: none;
+  border-radius: 10px;
+  margin: 8px 0 4px;
+}
+
 .follow-profile-button.following {
   background: transparent;
   border: 1px solid var(--border);
