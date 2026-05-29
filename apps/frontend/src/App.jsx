@@ -361,9 +361,9 @@ function AuthScreen({ onLogin, onRegister, spotifyError }) {
         <h1>Vibe</h1>
         <p>Post the track, mood, and moment before it disappears.</p>
         <div className="hero-albums">
-          <img src="https://upload.wikimedia.org/wikipedia/en/5/52/Imagine_Dragons_-_Night_Visions.jpg" alt="Imagine Dragons – Night Visions" />
+          <img src="https://upload.wikimedia.org/wikipedia/en/3/3f/Night_Visions_Album_Cover.jpeg" alt="Imagine Dragons – Night Visions" />
           <img src="https://upload.wikimedia.org/wikipedia/en/f/f6/Taylor_Swift_-_1989.png" alt="Taylor Swift – 1989" />
-          <img src="https://upload.wikimedia.org/wikipedia/en/0/06/Coldplay_-_A_Head_Full_of_Dreams.png" alt="Coldplay – A Head Full of Dreams" />
+          <img src="https://upload.wikimedia.org/wikipedia/en/3/3d/Coldplay_-_A_Head_Full_of_Dreams.png" alt="Coldplay – A Head Full of Dreams" />
         </div>
       </section>
       <section className="auth-panel">
