@@ -490,6 +490,9 @@ public final class Database {
         try { connection.createStatement().execute("ALTER TABLE users ADD COLUMN spotify_id TEXT"); } catch (SQLException ignored) {}
         try { connection.createStatement().execute("ALTER TABLE tracks ADD COLUMN spotify_id TEXT"); } catch (SQLException ignored) {}
         try { connection.createStatement().execute("ALTER TABLE tracks ADD COLUMN preview_url TEXT"); } catch (SQLException ignored) {}
+        // Remove fake seed tracks (no Spotify ID) and their posts
+        connection.createStatement().execute("DELETE FROM posts WHERE track_id IN (SELECT id FROM tracks WHERE spotify_id IS NULL OR spotify_id = '')");
+        connection.createStatement().execute("DELETE FROM tracks WHERE spotify_id IS NULL OR spotify_id = ''");
     }
 
     private void seedIfEmpty() throws SQLException {
