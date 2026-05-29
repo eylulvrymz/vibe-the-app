@@ -1002,3 +1002,21 @@ button {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+.follow-profile-button.following {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.follow-profile-button.following:hover {
+  border-color: #e53e3e;
+  color: #e53e3e;
+}
+
+.unfollow-btn {
+  opacity: 0.6;
+}
+.unfollow-btn:hover {
+  opacity: 1;
+  color: #e53e3e;
+}

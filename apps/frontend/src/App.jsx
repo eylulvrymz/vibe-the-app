@@ -19,6 +19,7 @@ import {
   connectSpotify,
   createPost,
   followUser,
+  unfollowUser,
   getFeed,
   getProfile,
   getSuggestions,
@@ -197,6 +198,16 @@ export default function App() {
     setProfile(profileData.user);
   }
 
+  async function handleUnfollow(userId) {
+    await unfollowUser(session.token, userId);
+    const [suggestionData, profileData] = await Promise.all([
+      getSuggestions(session.token),
+      getProfile(session.token, selectedProfileId || session.user.id),
+    ]);
+    setSuggestions(suggestionData.users);
+    setProfile(profileData.user);
+  }
+
   async function openProfile(userId) {
     setSelectedProfileId(userId);
     setView("profile");
@@ -261,11 +272,12 @@ export default function App() {
             onLike={handleLike}
             onNavigate={openProfile}
             onFollow={handleFollow}
+            onUnfollow={handleUnfollow}
             onPlay={deviceId ? handlePlay : null}
             activeSpotifyId={activeSpotifyId}
           />
         ) : view === "search" ? (
-          <SearchView results={results} onFollow={handleFollow} onNavigate={openProfile} />
+          <SearchView results={results} onFollow={handleFollow} onUnfollow={handleUnfollow} onNavigate={openProfile} />
         ) : (
           <FeedView
             posts={activePosts}
@@ -650,7 +662,7 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId }) {
   );
 }
 
-function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onPlay, activeSpotifyId }) {
+function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId }) {
   if (!profile) {
     return null;
   }
@@ -671,9 +683,12 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onPla
             ))}
           </div>
           {!isOwnProfile && (
-            <button className="follow-profile-button" onClick={() => onFollow(profile.id)}>
+            <button
+              className={`follow-profile-button${profile.isFollowing ? " following" : ""}`}
+              onClick={() => profile.isFollowing ? onUnfollow(profile.id) : onFollow(profile.id)}
+            >
               <UserPlus size={17} />
-              {profile.isFollowing ? "Following" : "Follow"}
+              {profile.isFollowing ? "Takipten çık" : "Takip et"}
             </button>
           )}
         </div>
@@ -726,7 +741,7 @@ function RelationshipList({ users, onNavigate }) {
   ));
 }
 
-function SearchView({ results, onFollow, onNavigate }) {
+function SearchView({ results, onFollow, onUnfollow, onNavigate }) {
   return (
     <div className="search-grid">
       <Panel title="Tracks" icon={Music2}>
@@ -750,9 +765,15 @@ function SearchView({ results, onFollow, onNavigate }) {
               <strong>{user.displayName}</strong>
               <span>@{user.username}</span>
             </button>
-            <button onClick={() => onFollow(user.id)} title={`Follow ${user.username}`}>
-              <Plus size={16} />
-            </button>
+            {user.isFollowing ? (
+              <button className="unfollow-btn" onClick={() => onUnfollow(user.id)} title="Takipten çık">
+                <Users size={16} />
+              </button>
+            ) : (
+              <button onClick={() => onFollow(user.id)} title={`Takip et`}>
+                <Plus size={16} />
+              </button>
+            )}
           </div>
         ))}
       </Panel>

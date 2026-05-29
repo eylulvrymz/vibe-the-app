@@ -318,6 +318,18 @@ export async function followUser(token, userId) {
   }
 }
 
+export async function unfollowUser(token, userId) {
+  try {
+    return await request(`/users/${userId}/follow`, { method: "DELETE", token });
+  } catch {
+    const state = loadLocalState();
+    const current = userFromToken(token, state);
+    state.follows = state.follows.filter(([from, to]) => !(from === current.id && to === userId));
+    saveLocalState(state);
+    return { ok: true, offline: true };
+  }
+}
+
 export async function getSuggestions(token) {
   try {
     return await request("/suggestions", { token });

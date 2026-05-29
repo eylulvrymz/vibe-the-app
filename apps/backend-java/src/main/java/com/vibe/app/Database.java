@@ -122,6 +122,13 @@ public final class Database {
         return user;
     }
 
+    public synchronized void unfollow(long followerId, long followingId) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement("DELETE FROM follows WHERE follower_id = ? AND following_id = ?");
+        statement.setLong(1, followerId);
+        statement.setLong(2, followingId);
+        statement.executeUpdate();
+    }
+
     public synchronized void follow(long followerId, long followingId) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)");
         statement.setLong(1, followerId);
@@ -234,7 +241,7 @@ public final class Database {
         return result;
     }
 
-    public synchronized Map<String, Object> search(String query) throws SQLException {
+    public synchronized Map<String, Object> search(String query, long currentUserId) throws SQLException {
         String like = "%" + query.toLowerCase() + "%";
         PreparedStatement trackStatement = connection.prepareStatement(
             "SELECT * FROM tracks WHERE lower(title) LIKE ? OR lower(artist) LIKE ? OR lower(genre) LIKE ? ORDER BY artist, title LIMIT 8"
@@ -257,7 +264,10 @@ public final class Database {
         ResultSet userRs = userStatement.executeQuery();
         List<Map<String, Object>> users = new ArrayList<Map<String, Object>>();
         while (userRs.next()) {
-            users.add(userFromResult(userRs, false));
+            Map<String, Object> user = userFromResult(userRs, false);
+            long userId = ((Number) user.get("id")).longValue();
+            user.put("isFollowing", scalar("SELECT COUNT(*) FROM follows WHERE follower_id = ? AND following_id = ?", currentUserId, userId) > 0);
+            users.add(user);
         }
 
         Map<String, Object> result = new LinkedHashMap<String, Object>();

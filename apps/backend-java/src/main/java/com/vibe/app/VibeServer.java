@@ -149,6 +149,14 @@ public final class VibeServer {
             return;
         }
 
+        if ("DELETE".equals(method) && path.matches("/api/users/\\d+/follow")) {
+            long currentUserId = requireUser(exchange);
+            long followingId = Long.parseLong(path.substring("/api/users/".length(), path.length() - "/follow".length()));
+            database.unfollow(currentUserId, followingId);
+            sendJson(exchange, 200, Json.object("ok", true));
+            return;
+        }
+
         if ("GET".equals(method) && "/api/suggestions".equals(path)) {
             long userId = requireUser(exchange);
             sendJson(exchange, 200, Json.object("users", database.suggestions(userId)));
@@ -156,8 +164,9 @@ public final class VibeServer {
         }
 
         if ("GET".equals(method) && "/api/search".equals(path)) {
+            long currentUserId = requireUser(exchange);
             String query = queryParam(uri, "q");
-            sendJson(exchange, 200, database.search(query == null ? "" : query));
+            sendJson(exchange, 200, database.search(query == null ? "" : query, currentUserId));
             return;
         }
 
@@ -281,7 +290,7 @@ public final class VibeServer {
         Headers headers = exchange.getResponseHeaders();
         headers.add("Access-Control-Allow-Origin", "*");
         headers.add("Access-Control-Allow-Headers", "Authorization, Content-Type");
-        headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        headers.add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     }
 
     private static void sendJson(HttpExchange exchange, int status, Object payload) throws IOException {
