@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Camera,
   Flame,
   Heart,
   Home,
@@ -38,6 +39,7 @@ import {
   login,
   register,
   search,
+  updateProfile,
 } from "./api.js";
 import { createPlayer, exchangeSpotifyCode, getSpotifyProfile, initiateSpotifyLogin, playTrack, searchSpotifyTracks } from "./spotify.js";
 
@@ -162,10 +164,21 @@ export default function App() {
   }
 
   async function handleRegister(form) {
-    const payload = await register(form.displayName, form.username, form.password, form.genres);
+    const payload = await register(form.displayName, form.username, form.password, form.genres, form.photoUrl);
     setSelectedProfileId(payload.user.id);
     setSession({ token: payload.token, user: payload.user, offline: payload.offline });
     setStatus(payload.offline ? "Local demo mode" : "Connected to Java API");
+  }
+
+  async function handleUpdatePhoto(photoUrl) {
+    await updateProfile(session.token, { photoUrl });
+    const updatedUser = { ...session.user, photoUrl };
+    setSession((prev) => ({ ...prev, user: updatedUser }));
+    setProfile((prev) => (prev ? { ...prev, photoUrl } : prev));
+    const uid = session.user.id;
+    const patchUser = (u) => (u.id === uid ? { ...u, photoUrl } : u);
+    setPosts((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
+    setTrending((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
   }
 
   async function handleCreatePost(payload) {
@@ -330,6 +343,7 @@ export default function App() {
             token={session.token}
             onDelete={handleDeletePost}
             onOpenPost={handleOpenPost}
+            onUpdatePhoto={handleUpdatePhoto}
           />
         ) : view === "search" ? (
           <SearchView
@@ -387,9 +401,28 @@ function AuthScreen({ onLogin, onRegister, spotifyError, onBack }) {
     displayName: "",
     password: "",
     genres: "",
+    photoUrl: "",
   });
   const [error, setError] = useState("");
   const [spotifyLoading, setSpotifyLoading] = useState(false);
+  const photoInputRef = useRef(null);
+
+  function validateUsername(u) {
+    if (!u) return "Username is required.";
+    if (u.length < 3) return "Username must be at least 3 characters.";
+    if (u.length > 20) return "Username can be at most 20 characters.";
+    if (/\s/.test(u)) return "Username cannot contain spaces.";
+    if (!/^[a-zA-Z0-9_]+$/.test(u)) return "Only letters, numbers, and underscores are allowed.";
+    return null;
+  }
+
+  function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => setForm((f) => ({ ...f, photoUrl: evt.target.result }));
+    reader.readAsDataURL(file);
+  }
 
   async function handleSpotifyLogin() {
     setSpotifyLoading(true);
@@ -404,6 +437,10 @@ function AuthScreen({ onLogin, onRegister, spotifyError, onBack }) {
   async function submit(event) {
     event.preventDefault();
     setError("");
+    if (mode === "register") {
+      const usernameErr = validateUsername(form.username);
+      if (usernameErr) { setError(usernameErr); return; }
+    }
     try {
       if (mode === "login") {
         await onLogin(form.username, form.password);
@@ -473,21 +510,59 @@ function AuthScreen({ onLogin, onRegister, spotifyError, onBack }) {
           </div>
 
           {mode === "register" && (
-            <div className="new-field">
-              <label>Display name</label>
-              <div className="new-inp">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="17" height="17"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
-                <input value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} placeholder="Your name" />
+            <>
+              {/* ── Profile photo upload ── */}
+              <div className="avatar-upload-wrap">
+                <button
+                  type="button"
+                  className="avatar-upload-circle"
+                  onClick={() => photoInputRef.current?.click()}
+                  title="Upload profile photo"
+                >
+                  {form.photoUrl ? (
+                    <img src={form.photoUrl} alt="Preview" />
+                  ) : (
+                    <Camera size={22} style={{ color: "var(--vibe-faint)" }} />
+                  )}
+                </button>
+                <span className="avatar-upload-label">Profile photo (optional)</span>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={handlePhotoChange}
+                />
               </div>
-            </div>
+
+              <div className="new-field">
+                <label>Display name</label>
+                <div className="new-inp">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="17" height="17"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+                  <input value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} placeholder="Your name" />
+                </div>
+              </div>
+            </>
           )}
 
           <div className="new-field">
             <label>Username</label>
             <div className="new-inp">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="17" height="17"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
-              <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="username" autoComplete="username" />
+              <input
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value.replace(/\s/g, "") })}
+                placeholder="username"
+                autoComplete="username"
+                spellCheck="false"
+                autoCapitalize="none"
+              />
             </div>
+            {mode === "register" && (
+              <span style={{ fontSize: "11px", color: "var(--vibe-faint)", marginTop: "4px", display: "block" }}>
+                3–20 chars · letters, numbers, underscores only
+              </span>
+            )}
           </div>
 
           <div className="new-field">
@@ -1376,7 +1451,17 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
   );
 }
 
-function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete, onOpenPost }) {
+function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete, onOpenPost, onUpdatePhoto }) {
+  const photoInputRef = useRef(null);
+
+  function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => onUpdatePhoto?.(evt.target.result);
+    reader.readAsDataURL(file);
+  }
+
   if (!profile) {
     return null;
   }
@@ -1386,7 +1471,17 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
   return (
     <div className="profile-layout">
       <section className="profile-hero">
-        <Avatar user={profile} large />
+        {isOwnProfile ? (
+          <div className="avatar-edit-wrap" onClick={() => photoInputRef.current?.click()} title="Change profile photo">
+            <Avatar user={profile} large />
+            <div className="avatar-edit-overlay">
+              <Camera size={20} />
+            </div>
+            <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoChange} />
+          </div>
+        ) : (
+          <Avatar user={profile} large />
+        )}
         <div className="profile-info">
           <div className="profile-handle">@{profile.username}</div>
           <div className="profile-name">{profile.displayName}</div>
@@ -1566,7 +1661,18 @@ function MiniTrack({ post, rank }) {
 }
 
 function Avatar({ user, large = false }) {
-  return <div className={`avatar avatar-${user.avatarKey || "spark"} ${large ? "large" : ""}`}>{user.displayName.slice(0, 1)}</div>;
+  if (user.photoUrl) {
+    return (
+      <div className={`avatar ${large ? "large" : ""}`} style={{ overflow: "hidden", background: "var(--vibe-panel-2)" }}>
+        <img src={user.photoUrl} alt={user.displayName} />
+      </div>
+    );
+  }
+  return (
+    <div className={`avatar avatar-${user.avatarKey || "spark"} ${large ? "large" : ""}`}>
+      {user.displayName.slice(0, 1)}
+    </div>
+  );
 }
 
 function formatDate(value) {

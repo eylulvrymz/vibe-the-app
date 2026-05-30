@@ -178,7 +178,7 @@ export async function connectSpotify(spotifyId, displayName, username) {
   }
 }
 
-export async function register(displayName, username, password, genres) {
+export async function register(displayName, username, password, genres, photoUrl) {
   try {
     return await request("/auth/register", {
       method: "POST",
@@ -196,11 +196,32 @@ export async function register(displayName, username, password, genres) {
       avatarKey: "spark",
       bio: "Fresh ears, fresh playlists, new favorite chorus loading.",
       favoriteGenres: genres.split(",").map((genre) => genre.trim()).filter(Boolean),
+      photoUrl: photoUrl || "",
     };
     state.users.push(user);
     state.credentials[username.toLowerCase()] = password;
     saveLocalState(state);
     return { user, token: localTokenFor(user), offline: true };
+  }
+}
+
+export async function updateProfile(token, updates) {
+  try {
+    return await request("/users/me", { method: "PATCH", token, body: updates });
+  } catch {
+    const state = loadLocalState();
+    const current = userFromToken(token, state);
+    const idx = state.users.findIndex((u) => u.id === current.id);
+    if (idx >= 0) {
+      state.users[idx] = { ...state.users[idx], ...updates };
+      // patch the user object inside any existing posts too
+      state.posts = state.posts.map((p) =>
+        p.user && p.user.id === current.id ? { ...p, user: { ...p.user, ...updates } } : p
+      );
+      saveLocalState(state);
+      return { user: state.users[idx], offline: true };
+    }
+    return { user: current, offline: true };
   }
 }
 
