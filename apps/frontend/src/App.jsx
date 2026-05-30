@@ -68,6 +68,7 @@ export default function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [query, setQuery] = useState("synth");
   const [results, setResults] = useState({ tracks: [], users: [] });
+  const [pendingTrackId, setPendingTrackId] = useState("");
   const [status, setStatus] = useState("");
   const [spotifyError, setSpotifyError] = useState("");
   const [player, setPlayer] = useState(null);
@@ -210,6 +211,11 @@ export default function App() {
     setView("search");
   }
 
+  function handlePostWithTrack(track) {
+    setPendingTrackId(String(track.id));
+    setView("feed");
+  }
+
   async function handleDeletePost(postId) {
     await deletePost(session.token, postId);
     setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -326,7 +332,18 @@ export default function App() {
             onOpenPost={handleOpenPost}
           />
         ) : view === "search" ? (
-          <SearchView results={results} onFollow={handleFollow} onUnfollow={handleUnfollow} onNavigate={openProfile} />
+          <SearchView
+            results={results}
+            posts={posts}
+            onFollow={handleFollow}
+            onUnfollow={handleUnfollow}
+            onNavigate={openProfile}
+            onPostWithTrack={handlePostWithTrack}
+            onLike={handleLike}
+            onOpenPost={handleOpenPost}
+            currentUser={session.user}
+            token={session.token}
+          />
         ) : (
           <FeedView
             posts={activePosts}
@@ -345,6 +362,8 @@ export default function App() {
             currentUser={session.user}
             onDelete={handleDeletePost}
             onOpenPost={handleOpenPost}
+            pendingTrackId={pendingTrackId}
+            onClearPendingTrack={() => setPendingTrackId("")}
           />
         )}
       </main>
@@ -921,11 +940,11 @@ function Sidebar({ view, setView, user, onLogout, onOwnProfile }) {
   );
 }
 
-function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId, token, currentUser, onDelete, onOpenPost }) {
+function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId, token, currentUser, onDelete, onOpenPost, pendingTrackId, onClearPendingTrack }) {
   return (
     <div className="content-grid">
       <section className="feed-column">
-        {!isTrending && <Composer tracks={tracks} onCreate={onCreate} spotifyToken={spotifyToken} />}
+        {!isTrending && <Composer tracks={tracks} onCreate={onCreate} spotifyToken={spotifyToken} pendingTrackId={pendingTrackId} onClearPendingTrack={onClearPendingTrack} />}
         <div className="post-list">
           {posts.map((post, index) => (
             <PostCard
@@ -972,10 +991,19 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
   );
 }
 
-function Composer({ tracks, onCreate, spotifyToken }) {
+function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendingTrack }) {
   const [trackId, setTrackId] = useState("");
   const [mood, setMood] = useState("Late-night");
   const [caption, setCaption] = useState("This track is carrying the whole evening.");
+
+  // When a track is selected from search, pre-fill the selector
+  useEffect(() => {
+    if (pendingTrackId) {
+      setTrackId(pendingTrackId);
+      setSpotifyTrack(null);
+      onClearPendingTrack?.();
+    }
+  }, [pendingTrackId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [spotifyQuery, setSpotifyQuery] = useState("");
   const [spotifyResults, setSpotifyResults] = useState([]);
   const [spotifyTrack, setSpotifyTrack] = useState(null);
@@ -1427,42 +1455,87 @@ function RelationshipList({ users, onNavigate }) {
   ));
 }
 
-function SearchView({ results, onFollow, onUnfollow, onNavigate }) {
+function SearchView({ results, posts, onFollow, onUnfollow, onNavigate, onPostWithTrack, onLike, onOpenPost, currentUser, token }) {
+  // Posts in the current feed that match any of the found tracks
+  const matchedPosts = useMemo(() => {
+    if (!results.tracks.length || !posts.length) return [];
+    const titles = new Set(results.tracks.map((t) => t.title.toLowerCase()));
+    return posts.filter((p) => titles.has(p.track.title.toLowerCase()));
+  }, [results.tracks, posts]);
+
   return (
-    <div className="search-grid">
-      <Panel title="Tracks" icon={Music2}>
-        {results.tracks.map((track) => (
-          <div className="track-result" key={track.id}>
-            <img src={track.coverUrl} alt={`${track.title} cover`} />
-            <div style={{ minWidth: 0 }}>
-              <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--vibe-ink)", fontSize: "13px" }}>{track.title}</strong>
-              <span style={{ fontSize: "11.5px", color: "var(--vibe-faint)" }}>{track.artist} · {track.genre}</span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* ── Tracks + People ── */}
+      <div className="search-grid">
+        <Panel title="Tracks" icon={Music2}>
+          {results.tracks.length === 0 && <p className="empty-copy">No tracks found.</p>}
+          {results.tracks.map((track) => (
+            <div className="track-result" key={track.id}>
+              <img src={track.coverUrl} alt={`${track.title} cover`} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--vibe-ink)", fontSize: "13px" }}>{track.title}</strong>
+                <span style={{ fontSize: "11.5px", color: "var(--vibe-faint)" }}>{track.artist}{track.genre ? ` · ${track.genre}` : ""}</span>
+              </div>
+              <button
+                className="chip"
+                style={{ color: "var(--vibe-teal)", borderColor: "rgba(46,230,198,.28)", flexShrink: 0, whiteSpace: "nowrap" }}
+                onClick={() => onPostWithTrack?.(track)}
+                title="Post with this track"
+              >
+                <Plus size={11} />
+                Post
+              </button>
             </div>
-          </div>
-        ))}
-      </Panel>
-      <Panel title="People" icon={User}>
-        {results.users.map((u) => (
-          <div className="suggestion-row" key={u.id}>
-            <button className="avatar-button" onClick={() => onNavigate(u.id)} title={`Open ${u.username}`}>
-              <Avatar user={u} />
-            </button>
-            <button className="name-button" onClick={() => onNavigate(u.id)}>
-              <strong style={{ color: "var(--vibe-ink)", fontSize: "13px" }}>{u.displayName}</strong>
-              <span style={{ color: "var(--vibe-faint)", fontSize: "11.5px" }}>@{u.username}</span>
-            </button>
-            {u.isFollowing ? (
-              <button className="unfollow-btn" onClick={() => onUnfollow(u.id)} title="Unfollow" style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--vibe-faint)" }}>
-                <Users size={15} />
+          ))}
+        </Panel>
+
+        <Panel title="People" icon={User}>
+          {results.users.length === 0 && <p className="empty-copy">No people found.</p>}
+          {results.users.map((u) => (
+            <div className="suggestion-row" key={u.id}>
+              <button className="avatar-button" onClick={() => onNavigate(u.id)} title={`Open ${u.username}`}>
+                <Avatar user={u} />
               </button>
-            ) : (
-              <button onClick={() => onFollow(u.id)} title="Follow">
-                <Plus size={15} />
+              <button className="name-button" onClick={() => onNavigate(u.id)}>
+                <strong style={{ color: "var(--vibe-ink)", fontSize: "13px" }}>{u.displayName}</strong>
+                <span style={{ color: "var(--vibe-faint)", fontSize: "11.5px" }}>@{u.username}</span>
               </button>
-            )}
+              {u.isFollowing ? (
+                <button className="unfollow-btn" onClick={() => onUnfollow(u.id)} title="Unfollow" style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--vibe-faint)" }}>
+                  <Users size={15} />
+                </button>
+              ) : (
+                <button onClick={() => onFollow(u.id)} title="Follow">
+                  <Plus size={15} />
+                </button>
+              )}
+            </div>
+          ))}
+        </Panel>
+      </div>
+
+      {/* ── Posts with these tracks ── */}
+      {matchedPosts.length > 0 && (
+        <div>
+          <p className="eyebrow" style={{ marginBottom: 14 }}>
+            Posts with {results.tracks.length === 1 ? "this track" : "these tracks"}
+          </p>
+          <div className="post-list">
+            {matchedPosts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onLike={onLike}
+                onNavigate={onNavigate}
+                onOpenPost={onOpenPost}
+                token={token}
+                currentUser={currentUser}
+                onDelete={null}
+              />
+            ))}
           </div>
-        ))}
-      </Panel>
+        </div>
+      )}
     </div>
   );
 }
