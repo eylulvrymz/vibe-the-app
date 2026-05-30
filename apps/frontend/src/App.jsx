@@ -44,8 +44,19 @@ import { createPlayer, exchangeSpotifyCode, getSpotifyProfile, initiateSpotifyLo
 const savedSession = JSON.parse(localStorage.getItem("vibe-session") || "null");
 const assetUrl = (path) => `${import.meta.env.BASE_URL}${path}`;
 
+// V-Note logomark as inline SVG (design handoff spec)
+function VibeMark({ size = 32, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Vibe" fill="none">
+      <path d="M14 15 L32 47 L50 15" stroke={color} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="32" cy="20" r="5.5" fill={color} />
+    </svg>
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState(savedSession);
+  const [showLanding, setShowLanding] = useState(!savedSession);
   const [view, setView] = useState("feed");
   const [prevView, setPrevView] = useState("feed");
   const [selectedPostId, setSelectedPostId] = useState(null);
@@ -252,10 +263,14 @@ export default function App() {
     setDeviceId(null);
     setPlayingTrackId(null);
     setIsPlaying(false);
+    setShowLanding(true);
   }
 
   if (!session) {
-    return <AuthScreen onLogin={handleLogin} onRegister={handleRegister} spotifyError={spotifyError} />;
+    if (showLanding) {
+      return <LandingPage onEnter={() => setShowLanding(false)} />;
+    }
+    return <AuthScreen onLogin={handleLogin} onRegister={handleRegister} spotifyError={spotifyError} onBack={() => setShowLanding(true)} />;
   }
 
   const activePosts = view === "trending" ? trending : posts;
@@ -337,13 +352,22 @@ export default function App() {
   );
 }
 
-function AuthScreen({ onLogin, onRegister, spotifyError }) {
+// ─── Spotify SVG glyph (inline, matches design) ───────────────────
+function SpotifyIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.6 14.4a.62.62 0 0 1-.86.21c-2.35-1.44-5.3-1.76-8.79-.96a.62.62 0 1 1-.28-1.22c3.82-.87 7.09-.5 9.72 1.11.3.18.39.57.21.86zm1.23-2.74a.78.78 0 0 1-1.07.26c-2.69-1.65-6.79-2.13-9.97-1.17a.78.78 0 1 1-.45-1.49c3.63-1.1 8.15-.56 11.24 1.33.37.23.49.71.25 1.07zm.1-2.85C14.84 8.04 9.6 7.86 6.53 8.79a.93.93 0 1 1-.54-1.78c3.52-1.07 9.3-.86 12.97 1.31a.93.93 0 1 1-.95 1.6z"/>
+    </svg>
+  );
+}
+
+function AuthScreen({ onLogin, onRegister, spotifyError, onBack }) {
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({
-    username: "luna",
-    displayName: "Luna Vale",
-    password: "vibe1234",
-    genres: "Synth Pop, Dream Pop, Electronic",
+    username: "",
+    displayName: "",
+    password: "",
+    genres: "",
   });
   const [error, setError] = useState("");
   const [spotifyLoading, setSpotifyLoading] = useState(false);
@@ -373,67 +397,488 @@ function AuthScreen({ onLogin, onRegister, spotifyError }) {
   }
 
   return (
-    <div className="auth-shell">
-      <section className="auth-visual">
-        <div className="brand-mark">
-          <img src={assetUrl("assets/vibe-logo.png")} alt="Vibe" />
+    <div className="new-auth-shell">
+      {/* Background glows */}
+      <div className="auth-glow auth-glow-tl" />
+      <div className="auth-glow auth-glow-br" />
+
+      <div className="new-auth-stage">
+        {/* LEFT — brand panel */}
+        <div className="new-brand-panel">
+          <div className="new-appicon">
+            <VibeMark size={42} color="#fff" />
+          </div>
+          <span className="new-pill">
+            <span className="new-pill-dot" />
+            Now in early access
+          </span>
+          <h1 className="new-auth-wordmark">Vibe</h1>
+          <p className="new-auth-tag">Post the track, mood, and moment — before it disappears.</p>
+          <div className="new-covers">
+            <div className="new-cov" style={{ background: "linear-gradient(135deg,#ff7a59,#b8336a 60%,#3a1c5e)" }}>
+              <span className="new-cov-mood">late-night</span>
+              <div className="new-cov-label">
+                Night Visions<span>Imagine Dragons</span>
+              </div>
+            </div>
+            <div className="new-cov" style={{ background: "linear-gradient(135deg,#1f8af2,#23d3a3 70%)" }}>
+              <span className="new-cov-mood">focus</span>
+              <div className="new-cov-label">
+                1989<span>Taylor Swift</span>
+              </div>
+            </div>
+            <div className="new-cov" style={{ background: "linear-gradient(135deg,#7b6cff,#22d3ee)" }}>
+              <span className="new-cov-mood">calm</span>
+              <div className="new-cov-label">
+                A Head Full of Dreams<span>Coldplay</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <h1>Vibe</h1>
-        <p>Post the track, mood, and moment before it disappears.</p>
-        <div className="hero-albums">
-          <img src="https://upload.wikimedia.org/wikipedia/en/3/3f/Night_Visions_Album_Cover.jpeg" alt="Imagine Dragons – Night Visions" />
-          <img src="https://upload.wikimedia.org/wikipedia/en/f/f6/Taylor_Swift_-_1989.png" alt="Taylor Swift – 1989" />
-          <img src="https://upload.wikimedia.org/wikipedia/en/3/3d/Coldplay_-_A_Head_Full_of_Dreams.png" alt="Coldplay – A Head Full of Dreams" />
-        </div>
-      </section>
-      <section className="auth-panel">
-        <div className="auth-tabs">
-          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>
-            Login
-          </button>
-          <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>
-            Register
-          </button>
-        </div>
-        <form onSubmit={submit} className="auth-form">
-          {mode === "register" && (
-            <label>
-              Display name
-              <input value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} />
-            </label>
+
+        {/* RIGHT — auth card */}
+        <form className="new-auth-card" onSubmit={submit}>
+          {onBack && (
+            <button type="button" className="new-auth-back" onClick={onBack}>
+              <ArrowLeft size={16} /> Back
+            </button>
           )}
-          <label>
-            Username
-            <input value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} />
-          </label>
-          <label>
-            Password
-            <input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
-          </label>
+          {/* Tabs */}
+          <div className="new-auth-tabs">
+            <button type="button" className={mode === "login" ? "on" : ""} onClick={() => { setMode("login"); setError(""); }}>
+              Log in
+            </button>
+            <button type="button" className={mode === "register" ? "on" : ""} onClick={() => { setMode("register"); setError(""); }}>
+              Register
+            </button>
+          </div>
+
           {mode === "register" && (
-            <label>
-              Favorite genres
-              <input value={form.genres} onChange={(event) => setForm({ ...form, genres: event.target.value })} />
-            </label>
+            <div className="new-field">
+              <label>Display name</label>
+              <div className="new-inp">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="17" height="17"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+                <input value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} placeholder="Your name" />
+              </div>
+            </div>
           )}
+
+          <div className="new-field">
+            <label>Username</label>
+            <div className="new-inp">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="17" height="17"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+              <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="username" autoComplete="username" />
+            </div>
+          </div>
+
+          <div className="new-field">
+            <label>Password</label>
+            <div className="new-inp">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="17" height="17"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} />
+            </div>
+          </div>
+
+          {mode === "register" && (
+            <div className="new-field">
+              <label>Favorite genres</label>
+              <div className="new-inp">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="17" height="17"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                <input value={form.genres} onChange={(e) => setForm({ ...form, genres: e.target.value })} placeholder="e.g. Synth Pop, Jazz, Electronic" />
+              </div>
+            </div>
+          )}
+
           {error && <p className="error-text">{error}</p>}
-          <button className="primary-button" type="submit">
+
+          <button className="new-btn-primary" type="submit">
             <Sparkles size={18} />
             {mode === "login" ? "Enter Vibe" : "Create account"}
           </button>
-          <div className="spotify-auth-divider">or</div>
-          <button
-            type="button"
-            className="spotify-button"
-            onClick={handleSpotifyLogin}
-            disabled={spotifyLoading}
-          >
-            <Music2 size={18} />
-            {spotifyLoading ? "Redirecting..." : "Continue with Spotify"}
+
+          <div className="new-or">OR</div>
+
+          <button type="button" className="new-btn-spotify" onClick={handleSpotifyLogin} disabled={spotifyLoading}>
+            <SpotifyIcon size={18} />
+            {spotifyLoading ? "Redirecting…" : "Continue with Spotify"}
           </button>
+
           {spotifyError && <p className="error-text">{spotifyError}</p>}
+
+          <p className="new-auth-alt">
+            {mode === "login" ? (
+              <>New to Vibe? <button type="button" onClick={() => { setMode("register"); setError(""); }}>Create an account</button></>
+            ) : (
+              <>Already have an account? <button type="button" onClick={() => { setMode("login"); setError(""); }}>Log in</button></>
+            )}
+          </p>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Landing Page ──────────────────────────────────────────────────
+function LandingPage({ onEnter }) {
+  return (
+    <div className="landing">
+      {/* Background auras */}
+      <div className="landing-aura landing-aura-tr" />
+      <div className="landing-aura landing-aura-bl" />
+
+      {/* ── Nav ── */}
+      <nav className="landing-nav">
+        <div className="landing-wrap landing-nav-in">
+          <div className="landing-brand">
+            <span className="landing-logo-tile">
+              <VibeMark size={20} color="#2dd4bf" />
+            </span>
+            Vibe
+          </div>
+          <div className="landing-nav-links">
+            <a href="#features">Features</a>
+            <a href="#preview">The feed</a>
+            <a href="#how">How it works</a>
+            <a href="#community">Community</a>
+          </div>
+          <div className="landing-nav-cta">
+            <button className="landing-btn landing-btn-ghost" onClick={onEnter}>Log in</button>
+            <button className="landing-btn landing-btn-solid" onClick={onEnter}>Get Vibe</button>
+          </div>
+        </div>
+      </nav>
+
+      {/* ── Hero ── */}
+      <header className="landing-hero-wrap">
+        <div className="landing-wrap landing-hero">
+          <div className="landing-hero-left">
+            <span className="landing-pill">
+              <span className="landing-pill-dot" />
+              Now in early access · Web &amp; Mobile
+            </span>
+            <h1 className="landing-h1">
+              The song is<br />the <span className="landing-grad">whole post.</span>
+            </h1>
+            <p className="landing-lede">
+              Vibe is the social app built for one thing — sharing the track you can't stop playing, the mood it puts you in, and the moment before it disappears.
+            </p>
+            <div className="landing-hero-cta">
+              <button className="landing-btn landing-btn-solid landing-btn-lg landing-btn-spotify" onClick={onEnter}>
+                <SpotifyIcon size={18} />
+                Continue with Spotify
+              </button>
+              <button className="landing-btn landing-btn-out landing-btn-lg" onClick={onEnter}>
+                Get started free
+              </button>
+            </div>
+            <div className="landing-hero-meta">
+              <div className="landing-avs">
+                <span style={{ background: "linear-gradient(135deg,#2dd4bf,#5aa8ff)" }}>L</span>
+                <span style={{ background: "linear-gradient(135deg,#5aa8ff,#7b6cff)" }}>M</span>
+                <span style={{ background: "linear-gradient(135deg,#ffb74d,#ff7a59)" }}>N</span>
+                <span style={{ background: "linear-gradient(135deg,#2dd4bf,#23d3a3)" }}>K</span>
+              </div>
+              Join thousands sharing what's in their headphones
+            </div>
+          </div>
+
+          {/* Phone mock */}
+          <div className="landing-phone-stage">
+            <div className="landing-phone-glow" />
+            <div className="landing-phone">
+              <div className="landing-notch" />
+              <div className="landing-screen">
+                <div className="landing-app-top">
+                  <div className="landing-app-eyebrow">VIBE RADAR</div>
+                  <div className="landing-app-title">Home feed</div>
+                </div>
+                <div className="landing-seg">
+                  <span className="on">Following</span>
+                  <span>Hot</span>
+                  <span>Nearby</span>
+                </div>
+                <div className="landing-post-card">
+                  <div className="landing-post-cover" style={{ background: "linear-gradient(135deg,#ff7a59,#b8336a 60%,#3a1c5e)" }} />
+                  <div className="landing-post-info">
+                    <div className="landing-post-user">
+                      <span className="landing-pa" style={{ background: "#5aa8ff" }}>E</span>
+                      <div>
+                        <div className="landing-pa-name">Emir</div>
+                        <div className="landing-pa-handle">@emir · Late-night</div>
+                      </div>
+                    </div>
+                    <div className="landing-post-track">Night Visions</div>
+                    <div className="landing-post-artist">Imagine Dragons — Night Visions</div>
+                    <p className="landing-post-cap">This track is carrying the whole evening.</p>
+                    <div className="landing-chiplets">
+                      <span className="landing-chiplet landing-chiplet-like">♥ 24</span>
+                      <span className="landing-chiplet">▶</span>
+                      <span className="landing-chiplet">💬 2</span>
+                      <span className="landing-chiplet">Spotify</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="landing-post-card">
+                  <div className="landing-post-cover" style={{ background: "linear-gradient(135deg,#1f8af2,#23d3a3 70%)" }} />
+                  <div className="landing-post-info">
+                    <div className="landing-post-user">
+                      <span className="landing-pa" style={{ background: "#2dd4bf", color: "#04130f" }}>L</span>
+                      <div>
+                        <div className="landing-pa-name">Luna Vale</div>
+                        <div className="landing-pa-handle">@luna · Focus</div>
+                      </div>
+                    </div>
+                    <div className="landing-post-track">Amsterdam</div>
+                    <div className="landing-post-artist">Imagine Dragons — Night Visions</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Strip */}
+        <div className="landing-strip">
+          <div className="landing-wrap landing-strip-in">
+            <span>POST THE TRACK</span>
+            <span className="landing-strip-sep">/</span>
+            <span>TAG THE MOOD</span>
+            <span className="landing-strip-sep">/</span>
+            <span>CATCH THE MOMENT</span>
+            <span className="landing-strip-sep">/</span>
+            <span>BEFORE IT DISAPPEARS</span>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Features ── */}
+      <section className="landing-section landing-features" id="features">
+        <div className="landing-wrap">
+          <div className="landing-sec-head">
+            <span className="landing-eyebrow">Why Vibe</span>
+            <h2>A feed that finally sounds like you.</h2>
+            <p>No endless scroll of nothing. Every post is a song someone's feeling right now — and the conversation around it.</p>
+          </div>
+          <div className="landing-fgrid">
+            <div className="landing-card">
+              <div className="landing-card-ic"><Music2 size={23} /></div>
+              <h3>Post the track</h3>
+              <p>Pull any song straight from Spotify, tag the mood, drop a thought. Posting takes ten seconds.</p>
+            </div>
+            <div className="landing-card landing-card-wide">
+              <div>
+                <div className="landing-card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="23" height="23"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+                <h3>Then it disappears</h3>
+                <p>Vibes vanish in 24 hours. The feed stays fresh, the pressure stays low — share the song you love today without it living forever.</p>
+              </div>
+              <div className="landing-ephem">
+                <span className="landing-ephem-text">// fades in 23:41:08</span>
+                <div className="landing-ephem-glow" />
+              </div>
+            </div>
+            <div className="landing-card">
+              <div className="landing-card-ic"><MessageSquare size={23} /></div>
+              <h3>Talk it out</h3>
+              <p>React, reply, and argue about songs with people who actually get the reference.</p>
+            </div>
+            <div className="landing-card">
+              <div className="landing-card-ic"><TrendingUp size={23} /></div>
+              <h3>Vibe Radar</h3>
+              <p>See what's heating up across your circle before it hits everywhere else.</p>
+            </div>
+            <div className="landing-card">
+              <div className="landing-card-ic"><Users size={23} /></div>
+              <h3>Find your people</h3>
+              <p>Follow taste, not clout. Suggested follows are built on what you actually listen to.</p>
+            </div>
+          </div>
+        </div>
       </section>
+
+      {/* ── App Preview ── */}
+      <section className="landing-section landing-preview" id="preview">
+        <div className="landing-wrap">
+          <div className="landing-sec-head">
+            <span className="landing-eyebrow">Inside the app</span>
+            <h2>Your home feed, live.</h2>
+            <p>Search a track, set the mood, and post. Watch Vibe Radar surface the hot tracks and people worth following.</p>
+          </div>
+          <div className="landing-winwrap">
+            <div className="landing-wintop">
+              <span className="landing-tl" />
+              <span className="landing-tl" />
+              <span className="landing-tl" />
+              <span className="landing-win-url">app.vibe.fm/home</span>
+            </div>
+            <div className="landing-applay">
+              <div className="landing-rail">
+                <span className="landing-rail-logo"><VibeMark size={20} color="#2dd4bf" /></span>
+                <span className="landing-ri landing-ri-on"><Home size={20} /></span>
+                <span className="landing-ri"><TrendingUp size={20} /></span>
+                <span className="landing-ri"><User size={20} /></span>
+                <span className="landing-ri"><Search size={20} /></span>
+              </div>
+              <div className="landing-main">
+                <div className="landing-main-eyebrow">VIBE RADAR</div>
+                <h3 className="landing-main-title">Home feed</h3>
+                <div className="landing-fcard">
+                  <div className="landing-fcard-cov" style={{ background: "linear-gradient(135deg,#ff7a59,#b8336a 60%,#3a1c5e)" }} />
+                  <div>
+                    <div className="landing-fcard-user">
+                      <span className="landing-pa" style={{ background: "#5aa8ff" }}>E</span>
+                      <div>
+                        <div className="landing-pa-name">Emir</div>
+                        <div className="landing-pa-handle">@emir · Late-night</div>
+                      </div>
+                    </div>
+                    <div className="landing-fcard-track">Night Visions</div>
+                    <div className="landing-fcard-artist">Imagine Dragons — Night Visions</div>
+                    <p className="landing-fcard-cap">This track is carrying the whole evening.</p>
+                    <div className="landing-chiplets">
+                      <span className="landing-chiplet landing-chiplet-like">♥ 2</span>
+                      <span className="landing-chiplet">▶</span>
+                      <span className="landing-chiplet">💬 2</span>
+                      <span className="landing-chiplet">Spotify</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="landing-side">
+                <div className="landing-sb">
+                  <h5><Flame size={16} />Hot tracks</h5>
+                  <div className="landing-hot"><span className="landing-rk">1</span><span className="landing-th" style={{ background: "linear-gradient(135deg,#ff7a59,#b8336a)" }} /><div><b>Night Visions</b><span>2 likes</span></div></div>
+                  <div className="landing-hot"><span className="landing-rk">2</span><span className="landing-th" style={{ background: "linear-gradient(135deg,#1f8af2,#23d3a3)" }} /><div><b>Amsterdam</b><span>0 likes</span></div></div>
+                </div>
+                <div className="landing-sb">
+                  <h5><UserPlus size={16} />Suggested</h5>
+                  <div className="landing-sug"><span className="landing-pa" style={{ background: "#2dd4bf", color: "#04130f" }}>L</span><div className="landing-sug-info"><b>Luna Vale</b><span>@luna</span></div><span className="landing-sug-add">+</span></div>
+                  <div className="landing-sug"><span className="landing-pa" style={{ background: "#5aa8ff" }}>M</span><div className="landing-sug-info"><b>Mika Sol</b><span>@mika</span></div><span className="landing-sug-add">+</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ── */}
+      <section className="landing-section landing-steps" id="how">
+        <div className="landing-wrap">
+          <div className="landing-sec-head">
+            <span className="landing-eyebrow">How it works</span>
+            <h2>Three taps to your first vibe.</h2>
+          </div>
+          <div className="landing-sgrid">
+            <div className="landing-step">
+              <span className="landing-step-num">01</span>
+              <h4>Search a track</h4>
+              <p>Connect Spotify and find the song that's living in your head right now.</p>
+            </div>
+            <div className="landing-step">
+              <span className="landing-step-num">02</span>
+              <h4>Tag the mood</h4>
+              <p>Late-night, focus, heartbreak, hype — set the feeling and add a line.</p>
+            </div>
+            <div className="landing-step">
+              <span className="landing-step-num">03</span>
+              <h4>Drop it &amp; go</h4>
+              <p>Your vibe hits the feed. Watch the likes, replies, and plays roll in for 24h.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Community ── */}
+      <section className="landing-community" id="community">
+        <div className="landing-wrap">
+          <div className="landing-sec-head">
+            <span className="landing-eyebrow">The community</span>
+            <h2>People come for the songs, stay for the takes.</h2>
+          </div>
+          <div className="landing-qgrid">
+            <div className="landing-quote">
+              <p>"It's the only feed where I actually discover music anymore. Everything I save comes from here now."</p>
+              <div className="landing-quote-who">
+                <span className="landing-pa" style={{ background: "linear-gradient(135deg,#2dd4bf,#5aa8ff)", color: "#04130f" }}>M</span>
+                <div><div className="landing-pa-name">Mika Sol</div><div className="landing-pa-handle">@mika</div></div>
+              </div>
+            </div>
+            <div className="landing-quote">
+              <p>"Posting a song and watching strangers vibe with it at 1am is a feeling I didn't know I needed."</p>
+              <div className="landing-quote-who">
+                <span className="landing-pa" style={{ background: "linear-gradient(135deg,#5aa8ff,#7b6cff)" }}>N</span>
+                <div><div className="landing-pa-name">Nova Hart</div><div className="landing-pa-handle">@nova</div></div>
+              </div>
+            </div>
+            <div className="landing-quote">
+              <p>"No followers to chase, no algorithm to game. Just good taste finding good taste."</p>
+              <div className="landing-quote-who">
+                <span className="landing-pa" style={{ background: "linear-gradient(135deg,#ffb74d,#ff7a59)" }}>K</span>
+                <div><div className="landing-pa-name">Kai Rivers</div><div className="landing-pa-handle">@kai</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="landing-section landing-cta-section">
+        <div className="landing-wrap">
+          <div className="landing-cta-box">
+            <div className="landing-cta-glow" />
+            <span className="landing-eyebrow">Your turn</span>
+            <h2 className="landing-cta-h2">What are you<br />playing right now?</h2>
+            <p className="landing-cta-p">Post it before it disappears. Join the people sharing the soundtrack to their day.</p>
+            <div className="landing-cta-row">
+              <button className="landing-btn landing-btn-solid landing-btn-lg landing-btn-spotify" onClick={onEnter}>
+                <SpotifyIcon size={18} />
+                Continue with Spotify
+              </button>
+              <button className="landing-btn landing-btn-out landing-btn-lg" onClick={onEnter}>
+                Get started free
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="landing-footer">
+        <div className="landing-wrap">
+          <div className="landing-foot">
+            <div className="landing-foot-brand">
+              <div className="landing-brand">
+                <span className="landing-logo-tile"><VibeMark size={20} color="#2dd4bf" /></span>
+                Vibe
+              </div>
+              <p>Post the track, mood, and moment — before it disappears.</p>
+            </div>
+            <div className="landing-fcols">
+              <div className="landing-fcol">
+                <h5>Product</h5>
+                <a href="#features">Features</a>
+                <a href="#preview">Vibe Radar</a>
+                <a href="#" onClick={onEnter}>Get started</a>
+              </div>
+              <div className="landing-fcol">
+                <h5>Company</h5>
+                <a href="#">About</a>
+                <a href="#">Careers</a>
+                <a href="#">Press</a>
+              </div>
+              <div className="landing-fcol">
+                <h5>Connect</h5>
+                <a href="#">Instagram</a>
+                <a href="#">TikTok</a>
+                <a href="#">X / Twitter</a>
+              </div>
+            </div>
+          </div>
+          <div className="landing-copyright">
+            <span>© 2026 Vibe Labs</span>
+            <span className="landing-mono">made for people with taste</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
