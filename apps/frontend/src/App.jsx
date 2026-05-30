@@ -893,24 +893,28 @@ function Sidebar({ view, setView, user, onLogout, onOwnProfile }) {
 
   return (
     <aside className="sidebar">
-      <button className="logo-button" onClick={() => setView("feed")} title="Vibe home">
-        <img src={assetUrl("assets/vibe-logo.png")} alt="Vibe" />
+      {/* Gradient logo tile with VibeMark */}
+      <button className="logo-mark" onClick={() => setView("feed")} title="Vibe home">
+        <VibeMark size={19} color="currentColor" />
       </button>
-      <nav>
+
+      {/* Icon-only nav */}
+      <div className="nav-icons">
         {items.map(([key, Icon, label, action]) => (
-          <button key={key} className={view === key ? "active" : ""} onClick={action} title={label}>
-            <Icon size={21} />
-            <span>{label}</span>
+          <button key={key} className={`nav-icon${view === key ? " on" : ""}`} onClick={action} title={label}>
+            <Icon size={20} />
           </button>
         ))}
-      </nav>
-      <div className="sidebar-user">
-        <button className="avatar-button" onClick={onOwnProfile} title="Open your profile">
+      </div>
+
+      {/* User footer */}
+      <div className="sidenav-foot">
+        <button className="sidenav-user-av" onClick={onOwnProfile} title="Your profile">
           <Avatar user={user} />
         </button>
-        <span>{user.username}</span>
-        <button onClick={onLogout} title="Logout">
-          <LogOut size={18} />
+        <span className="user-label">{user.username}</span>
+        <button className="logout-btn" onClick={onLogout} title="Log out">
+          <LogOut size={17} />
         </button>
       </div>
     </aside>
@@ -940,24 +944,25 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
           ))}
         </div>
       </section>
+
       <aside className="insight-column">
         <Panel title="Hot tracks" icon={Flame}>
-          {trending.slice(0, 3).map((post, index) => (
+          {trending.slice(0, 5).map((post, index) => (
             <MiniTrack key={post.id} post={post} rank={index + 1} />
           ))}
         </Panel>
         <Panel title="Suggested follows" icon={UserPlus}>
-          {suggestions.slice(0, 4).map((user) => (
-            <div className="suggestion-row" key={user.id}>
-              <button className="avatar-button" onClick={() => onNavigate(user.id)} title={`Open ${user.username}`}>
-                <Avatar user={user} />
+          {suggestions.slice(0, 4).map((u) => (
+            <div className="suggestion-row" key={u.id}>
+              <button className="avatar-button" onClick={() => onNavigate(u.id)} title={`Open ${u.username}`}>
+                <Avatar user={u} />
               </button>
-              <button className="name-button" onClick={() => onNavigate(user.id)}>
-                <strong>{user.displayName}</strong>
-                <span>@{user.username}</span>
+              <button className="name-button" onClick={() => onNavigate(u.id)}>
+                <strong>{u.displayName}</strong>
+                <span>@{u.username}</span>
               </button>
-              <button onClick={() => onFollow(user.id)} title={`Follow ${user.username}`}>
-                <Plus size={16} />
+              <button onClick={() => onFollow(u.id)} title={`Follow ${u.username}`}>
+                <Plus size={15} />
               </button>
             </div>
           ))}
@@ -1084,13 +1089,13 @@ function Composer({ tracks, onCreate, spotifyToken }) {
               ))}
             </select>
           )}
-          <input value={mood} onChange={(e) => setMood(e.target.value)} aria-label="Mood" />
+          <input className="c-mood" value={mood} onChange={(e) => setMood(e.target.value)} aria-label="Mood" placeholder="Mood…" />
+          <button className="icon-primary" type="submit" title="Post vibe">
+            <Plus size={18} />
+          </button>
         </div>
-        <textarea value={caption} onChange={(e) => setCaption(e.target.value)} aria-label="Caption" />
+        <textarea value={caption} onChange={(e) => setCaption(e.target.value)} aria-label="Caption" placeholder="What's this track doing to you right now?" />
       </div>
-      <button className="icon-primary" title="Post vibe">
-        <Plus size={20} />
-      </button>
     </form>
   );
 }
@@ -1100,23 +1105,41 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
   const [showEmbed, setShowEmbed] = useState(false);
   const isPostOwner = currentUser && post.user.id === currentUser.id;
 
+  function handleCardClick() {
+    if (onOpenPost) onOpenPost(post.id);
+  }
+
   return (
-    <article className="post-card">
+    <article className="post-card" onClick={handleCardClick}>
       {rank && <div className="rank-badge">#{rank}</div>}
-      <img className="cover" src={post.track.coverUrl} alt={`${post.track.title} cover`} />
+
+      {/* Album art */}
+      <div className="post-art">
+        <img src={post.track.coverUrl} alt={`${post.track.title} cover`} />
+      </div>
+
       <div className="post-body">
+        {/* User meta */}
         <div className="post-meta">
-          <button className="avatar-button" onClick={() => onNavigate(post.user.id)} title={`Open ${post.user.username}`}>
+          <button
+            className="chip-avatar-btn"
+            onClick={(e) => { e.stopPropagation(); onNavigate(post.user.id); }}
+            title={`Open ${post.user.username}`}
+          >
             <Avatar user={post.user} />
           </button>
-          <button className="profile-link" onClick={() => onNavigate(post.user.id)}>
-            <strong>{post.user.displayName}</strong>
-            <span>@{post.user.username} mixed {post.mood}</span>
-          </button>
+          <div>
+            <div className="post-user">{post.user.displayName}</div>
+            <div className="post-handle">@{post.user.username} · {post.mood}</div>
+          </div>
         </div>
-        <h2>{post.track.title}</h2>
-        <p className="artist">{post.track.artist} - {post.track.album}</p>
-        <p className="caption">{post.caption}</p>
+
+        {/* Track info */}
+        <div className="post-track">{post.track.title}</div>
+        <div className="post-album">{post.track.artist} — {post.track.album}</div>
+        <p className="post-caption">{post.caption}</p>
+
+        {/* Spotify embed */}
         {showEmbed && spotifyId && (
           <iframe
             className="spotify-embed"
@@ -1125,25 +1148,47 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
             loading="lazy"
           />
         )}
-        <div className="post-actions">
-          <button className={post.likedByMe ? "liked" : ""} onClick={() => onLike(post.id)} title={post.likedByMe ? "Unlike" : "Like"}>
-            <Heart size={18} fill={post.likedByMe ? "currentColor" : "none"} />
+
+        {/* Chip action row */}
+        <div className="chips">
+          <button
+            className={`chip love${post.likedByMe ? " loved" : ""}`}
+            onClick={(e) => { e.stopPropagation(); onLike(post.id); }}
+            title={post.likedByMe ? "Unlike" : "Like"}
+          >
+            <Heart size={12} fill={post.likedByMe ? "currentColor" : "none"} />
             {post.likeCount}
           </button>
+
           {spotifyId && (
-            <button className={`play-btn${showEmbed ? " playing" : ""}`} onClick={() => setShowEmbed((p) => !p)} title={showEmbed ? "Hide player" : "Play"}>
-              {showEmbed ? <Pause size={18} /> : <Play size={18} />}
+            <button
+              className="chip"
+              onClick={(e) => { e.stopPropagation(); setShowEmbed((p) => !p); }}
+              title={showEmbed ? "Hide player" : "Play"}
+            >
+              {showEmbed ? <Pause size={12} /> : <Play size={12} />}
             </button>
           )}
-          <button className="comment-btn" onClick={() => onOpenPost && onOpenPost(post.id)} title="View replies">
-            <MessageSquare size={18} />
-            <span>{post.commentCount || 0}</span>
+
+          <button
+            className="chip"
+            onClick={(e) => { e.stopPropagation(); if (onOpenPost) onOpenPost(post.id); }}
+            title="View replies"
+          >
+            <MessageSquare size={12} />
+            {post.commentCount || 0}
           </button>
-          <span>{post.track.genre}</span>
-          <span>{formatDate(post.createdAt)}</span>
+
+          {post.track.genre && <span className="chip src">{post.track.genre}</span>}
+          <span className="chip dt">{formatDate(post.createdAt)}</span>
+
           {isPostOwner && onDelete && (
-            <button className="delete-btn" onClick={() => onDelete(post.id)} title="Delete post">
-              <Trash2 size={15} />
+            <button
+              className="chip del"
+              onClick={(e) => { e.stopPropagation(); onDelete(post.id); }}
+              title="Delete post"
+            >
+              <Trash2 size={12} />
             </button>
           )}
         </div>
@@ -1311,9 +1356,9 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
     <div className="profile-layout">
       <section className="profile-hero">
         <Avatar user={profile} large />
-        <div>
-          <p className="eyebrow">@{profile.username}</p>
-          <h1>{profile.displayName}</h1>
+        <div className="profile-info">
+          <div className="profile-handle">@{profile.username}</div>
+          <div className="profile-name">{profile.displayName}</div>
           <p>{profile.bio}</p>
           <div className="genre-row">
             {profile.favoriteGenres.map((genre) => (
@@ -1325,7 +1370,7 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
               className={`follow-profile-button${profile.isFollowing ? " following" : ""}`}
               onClick={() => profile.isFollowing ? onUnfollow(profile.id) : onFollow(profile.id)}
             >
-              <UserPlus size={17} />
+              <UserPlus size={15} />
               {profile.isFollowing ? "Unfollow" : "Follow"}
             </button>
           )}
@@ -1355,7 +1400,7 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
         </Panel>
       </div>
 
-      <div className="post-list compact">
+      <div className="post-list">
         {(profile.posts || []).map((post) => (
           <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} token={token} currentUser={currentUser} onDelete={onDelete} onOpenPost={onOpenPost} />
         ))}
@@ -1372,8 +1417,8 @@ function RelationshipList({ users, onNavigate }) {
     <button className="relationship-user" key={user.id} onClick={() => onNavigate(user.id)}>
       <Avatar user={user} />
       <span>
-        <strong>{user.displayName}</strong>
-        <small>@{user.username}</small>
+        <strong style={{ color: "var(--vibe-ink)", fontSize: "13px" }}>{user.displayName}</strong>
+        <small style={{ color: "var(--vibe-faint)", fontSize: "11px" }}>@{user.username}</small>
       </span>
     </button>
   ));
@@ -1386,30 +1431,30 @@ function SearchView({ results, onFollow, onUnfollow, onNavigate }) {
         {results.tracks.map((track) => (
           <div className="track-result" key={track.id}>
             <img src={track.coverUrl} alt={`${track.title} cover`} />
-            <div>
-              <strong>{track.title}</strong>
-              <span>{track.artist} - {track.genre}</span>
+            <div style={{ minWidth: 0 }}>
+              <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--vibe-ink)", fontSize: "13px" }}>{track.title}</strong>
+              <span style={{ fontSize: "11.5px", color: "var(--vibe-faint)" }}>{track.artist} · {track.genre}</span>
             </div>
           </div>
         ))}
       </Panel>
       <Panel title="People" icon={User}>
-        {results.users.map((user) => (
-          <div className="suggestion-row" key={user.id}>
-            <button className="avatar-button" onClick={() => onNavigate(user.id)} title={`Open ${user.username}`}>
-              <Avatar user={user} />
+        {results.users.map((u) => (
+          <div className="suggestion-row" key={u.id}>
+            <button className="avatar-button" onClick={() => onNavigate(u.id)} title={`Open ${u.username}`}>
+              <Avatar user={u} />
             </button>
-            <button className="name-button" onClick={() => onNavigate(user.id)}>
-              <strong>{user.displayName}</strong>
-              <span>@{user.username}</span>
+            <button className="name-button" onClick={() => onNavigate(u.id)}>
+              <strong style={{ color: "var(--vibe-ink)", fontSize: "13px" }}>{u.displayName}</strong>
+              <span style={{ color: "var(--vibe-faint)", fontSize: "11.5px" }}>@{u.username}</span>
             </button>
-            {user.isFollowing ? (
-              <button className="unfollow-btn" onClick={() => onUnfollow(user.id)} title="Unfollow">
-                <Users size={16} />
+            {u.isFollowing ? (
+              <button className="unfollow-btn" onClick={() => onUnfollow(u.id)} title="Unfollow" style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--vibe-faint)" }}>
+                <Users size={15} />
               </button>
             ) : (
-              <button onClick={() => onFollow(user.id)} title="Follow">
-                <Plus size={16} />
+              <button onClick={() => onFollow(u.id)} title="Follow">
+                <Plus size={15} />
               </button>
             )}
           </div>
@@ -1423,7 +1468,7 @@ function Panel({ title, icon: Icon, children }) {
   return (
     <section className="panel">
       <h2>
-        <Icon size={18} />
+        <Icon size={15} />
         {title}
       </h2>
       <div className="panel-list">{children}</div>
@@ -1436,9 +1481,9 @@ function MiniTrack({ post, rank }) {
     <div className="mini-track">
       <span>{rank}</span>
       <img src={post.track.coverUrl} alt={`${post.track.title} cover`} />
-      <div>
-        <strong>{post.track.title}</strong>
-        <small>{post.likeCount} likes</small>
+      <div style={{ minWidth: 0 }}>
+        <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{post.track.title}</strong>
+        <small>{post.likeCount} {post.likeCount === 1 ? "like" : "likes"}</small>
       </div>
     </div>
   );
