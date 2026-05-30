@@ -639,6 +639,8 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
   const [submitting, setSubmitting] = useState(false);
   const [commentError, setCommentError] = useState("");
   const [localCommentCount, setLocalCommentCount] = useState(post.commentCount || 0);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyText, setReplyText] = useState("");
 
   const isPostOwner = currentUser && post.user.id === currentUser.id;
 
@@ -670,6 +672,24 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
     await deleteComment(token, post.id, commentId);
     setComments((prev) => prev.filter((c) => c.id !== commentId));
     setLocalCommentCount((n) => Math.max(0, n - 1));
+  }
+
+  async function submitReply(e, parentId) {
+    e.preventDefault();
+    if (!replyText.trim()) return;
+    setSubmitting(true);
+    setCommentError("");
+    try {
+      const data = await addComment(token, post.id, replyText.trim(), currentUser, parentId);
+      setComments((prev) => [...prev, data.comment]);
+      setLocalCommentCount((n) => n + 1);
+      setReplyText("");
+      setReplyingTo(null);
+    } catch {
+      setCommentError("Session expired — please log out and log back in.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleLikeComment(commentId) {
@@ -728,35 +748,86 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
         </div>
         {showComments && (
           <div className="comments-section">
-            {(comments || []).map((c) => {
+            {(comments || []).filter((c) => !c.parentId).map((c) => {
               const canDelete = currentUser && (c.user.id === currentUser.id || isPostOwner);
+              const replies = (comments || []).filter((r) => Number(r.parentId) === Number(c.id));
+              const isReplying = replyingTo === c.id;
               return (
-                <div className="comment-row" key={c.id}>
-                  <Avatar user={c.user} />
-                  <div className="comment-body">
-                    <div className="comment-header">
-                      <strong>{c.user.displayName}</strong>
-                      <span className="comment-username">@{c.user.username}</span>
-                      <span className="comment-time">{formatDate(c.createdAt)}</span>
-                      {canDelete && (
-                        <button className="delete-btn comment-delete" onClick={() => handleDeleteComment(c.id)} title="Delete comment">
-                          <Trash2 size={13} />
+                <div className="comment-thread" key={c.id}>
+                  <div className="comment-row">
+                    <Avatar user={c.user} />
+                    <div className="comment-body">
+                      <div className="comment-header">
+                        <strong>{c.user.displayName}</strong>
+                        <span className="comment-username">@{c.user.username}</span>
+                        <span className="comment-time">{formatDate(c.createdAt)}</span>
+                        {canDelete && (
+                          <button className="delete-btn comment-delete" onClick={() => handleDeleteComment(c.id)} title="Delete comment">
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                      <p className="comment-text">{c.content}</p>
+                      <div className="comment-actions">
+                        <button className={`comment-like-btn${c.likedByMe ? " liked" : ""}`} onClick={() => handleLikeComment(c.id)} disabled={!token} title="Like">
+                          <Heart size={13} fill={c.likedByMe ? "currentColor" : "none"} />
+                          {c.likeCount > 0 && <span>{c.likeCount}</span>}
                         </button>
-                      )}
-                    </div>
-                    <p className="comment-text">{c.content}</p>
-                    <div className="comment-actions">
-                      <button
-                        className={`comment-like-btn${c.likedByMe ? " liked" : ""}`}
-                        onClick={() => handleLikeComment(c.id)}
-                        disabled={!token}
-                        title="Like comment"
-                      >
-                        <Heart size={13} fill={c.likedByMe ? "currentColor" : "none"} />
-                        {(c.likeCount > 0) && <span>{c.likeCount}</span>}
-                      </button>
+                        {token && (
+                          <button className={`comment-reply-btn${isReplying ? " active" : ""}`} onClick={() => { setReplyingTo(isReplying ? null : c.id); setReplyText(""); }} title="Reply">
+                            <MessageSquare size={13} />
+                            <span>Reply</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  {(replies.length > 0 || isReplying) && (
+                    <div className="reply-thread">
+                      {replies.map((r) => {
+                        const canDelReply = currentUser && (r.user.id === currentUser.id || isPostOwner);
+                        return (
+                          <div className="comment-row reply-row" key={r.id}>
+                            <Avatar user={r.user} />
+                            <div className="comment-body">
+                              <div className="comment-header">
+                                <strong>{r.user.displayName}</strong>
+                                <span className="comment-username">@{r.user.username}</span>
+                                <span className="comment-time">{formatDate(r.createdAt)}</span>
+                                {canDelReply && (
+                                  <button className="delete-btn comment-delete" onClick={() => handleDeleteComment(r.id)} title="Delete">
+                                    <Trash2 size={13} />
+                                  </button>
+                                )}
+                              </div>
+                              <p className="comment-text">{r.content}</p>
+                              <div className="comment-actions">
+                                <button className={`comment-like-btn${r.likedByMe ? " liked" : ""}`} onClick={() => handleLikeComment(r.id)} disabled={!token}>
+                                  <Heart size={13} fill={r.likedByMe ? "currentColor" : "none"} />
+                                  {r.likeCount > 0 && <span>{r.likeCount}</span>}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {isReplying && (
+                        <form className="reply-form" onSubmit={(e) => submitReply(e, c.id)}>
+                          {currentUser && <Avatar user={currentUser} />}
+                          <input
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder={`Reply to @${c.user.username}...`}
+                            autoFocus
+                            disabled={submitting}
+                          />
+                          <button type="submit" disabled={submitting || !replyText.trim()}>
+                            <Plus size={15} />
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

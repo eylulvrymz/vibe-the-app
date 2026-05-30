@@ -181,7 +181,8 @@ public final class VibeServer {
                 sendJson(exchange, 400, Json.object("error", "Content is required"));
                 return;
             }
-            Map<String, Object> comment = database.addComment(userId, postId, content.trim());
+            long parentId = parseLong(body.get("parentId"), 0L);
+            Map<String, Object> comment = database.addComment(userId, postId, content.trim(), parentId);
             sendJson(exchange, 201, Json.object("comment", comment));
             return;
         }

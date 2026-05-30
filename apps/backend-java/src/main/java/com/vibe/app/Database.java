@@ -149,19 +149,20 @@ public final class Database {
         return statement.executeUpdate() > 0;
     }
 
-    public synchronized Map<String, Object> addComment(long userId, long postId, String content) throws SQLException {
+    public synchronized Map<String, Object> addComment(long userId, long postId, String content, long parentId) throws SQLException {
         PreparedStatement insert = connection.prepareStatement(
-            "INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)",
+            "INSERT INTO comments (post_id, user_id, content, parent_id) VALUES (?, ?, ?, ?)",
             Statement.RETURN_GENERATED_KEYS
         );
         insert.setLong(1, postId);
         insert.setLong(2, userId);
         insert.setString(3, content);
+        if (parentId > 0) { insert.setLong(4, parentId); } else { insert.setNull(4, java.sql.Types.INTEGER); }
         insert.executeUpdate();
         ResultSet keys = insert.getGeneratedKeys();
         long id = keys.next() ? keys.getLong(1) : 0L;
         PreparedStatement select = connection.prepareStatement(
-            "SELECT c.id, c.content, c.created_at, u.id AS user_id, u.username, u.display_name, u.avatar_key, " +
+            "SELECT c.id, c.content, c.created_at, c.parent_id, u.id AS user_id, u.username, u.display_name, u.avatar_key, " +
             "0 AS like_count, 0 AS liked_by_me " +
             "FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?"
         );
@@ -172,7 +173,7 @@ public final class Database {
 
     public synchronized List<Map<String, Object>> getComments(long postId, long currentUserId) throws SQLException {
         PreparedStatement statement = connection.prepareStatement(
-            "SELECT c.id, c.content, c.created_at, u.id AS user_id, u.username, u.display_name, u.avatar_key, " +
+            "SELECT c.id, c.content, c.created_at, c.parent_id, u.id AS user_id, u.username, u.display_name, u.avatar_key, " +
             "(SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id) AS like_count, " +
             "(SELECT COUNT(*) FROM comment_likes cl2 WHERE cl2.comment_id = c.id AND cl2.user_id = ?) AS liked_by_me " +
             "FROM comments c JOIN users u ON u.id = c.user_id WHERE c.post_id = ? ORDER BY c.created_at ASC"
@@ -210,6 +211,10 @@ public final class Database {
         comment.put("id", rs.getLong("id"));
         comment.put("content", rs.getString("content"));
         comment.put("createdAt", rs.getString("created_at"));
+        try {
+            long pid = rs.getLong("parent_id");
+            comment.put("parentId", rs.wasNull() ? null : pid);
+        } catch (SQLException ignored) { comment.put("parentId", null); }
         try { comment.put("likeCount", rs.getInt("like_count")); } catch (SQLException ignored) { comment.put("likeCount", 0); }
         try { comment.put("likedByMe", rs.getInt("liked_by_me") > 0); } catch (SQLException ignored) { comment.put("likedByMe", false); }
         Map<String, Object> user = new LinkedHashMap<String, Object>();
@@ -532,6 +537,7 @@ public final class Database {
         try { connection.createStatement().execute("ALTER TABLE users ADD COLUMN spotify_id TEXT"); } catch (SQLException ignored) {}
         try { connection.createStatement().execute("ALTER TABLE tracks ADD COLUMN spotify_id TEXT"); } catch (SQLException ignored) {}
         try { connection.createStatement().execute("ALTER TABLE tracks ADD COLUMN preview_url TEXT"); } catch (SQLException ignored) {}
+        try { connection.createStatement().execute("ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)"); } catch (SQLException ignored) {}
         // Remove fake seed tracks (no Spotify ID) and their posts
         connection.createStatement().execute("DELETE FROM posts WHERE track_id IN (SELECT id FROM tracks WHERE spotify_id IS NULL OR spotify_id = '')");
         connection.createStatement().execute("DELETE FROM tracks WHERE spotify_id IS NULL OR spotify_id = ''");

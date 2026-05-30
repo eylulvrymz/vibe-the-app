@@ -312,12 +312,12 @@ export async function getComments(token, postId) {
   }
 }
 
-export async function addComment(token, postId, content, currentUser) {
+export async function addComment(token, postId, content, currentUser, parentId) {
   try {
-    return await request(`/posts/${postId}/comments`, { method: "POST", token, body: { content } });
+    return await request(`/posts/${postId}/comments`, { method: "POST", token, body: { content, ...(parentId ? { parentId } : {}) } });
   } catch (err) {
     if (err.message === "Authentication required") throw err;
-    return { comment: { id: Date.now(), content, createdAt: new Date().toISOString(), user: currentUser || { username: "you", displayName: "You", avatarKey: "U" } } };
+    return { comment: { id: Date.now(), content, parentId: parentId || null, createdAt: new Date().toISOString(), likeCount: 0, likedByMe: false, user: currentUser || { username: "you", displayName: "You", avatarKey: "U" } } };
   }
 }
 

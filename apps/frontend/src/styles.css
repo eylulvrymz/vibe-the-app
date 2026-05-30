@@ -1114,6 +1114,62 @@ button {
   margin-top: 2px;
 }
 
+.comment-thread { display: flex; flex-direction: column; }
+
+.reply-thread {
+  margin-left: 42px;
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.reply-row .avatar { width: 26px; height: 26px; font-size: 11px; }
+
+.reply-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+
+.reply-form input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.reply-form input:focus { border-color: var(--accent); }
+
+.reply-form button {
+  background: var(--accent);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: #000;
+  flex-shrink: 0;
+}
+
+.comment-reply-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 2px 0;
+  transition: color 0.15s;
+}
+.comment-reply-btn:hover, .comment-reply-btn.active { color: var(--accent); }
+
 .comment-like-btn {
   display: flex;
   align-items: center;
