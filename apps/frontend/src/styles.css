@@ -1798,6 +1798,8 @@ button {
   display: flex;
   align-items: flex-end;
   padding: 11px;
+  background-size: cover;
+  background-position: center;
 }
 .new-cov-mood {
   position: absolute;
