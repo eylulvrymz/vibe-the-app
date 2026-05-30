@@ -987,6 +987,10 @@ function Composer({ tracks, onCreate, spotifyToken }) {
   );
   const activeTrack = spotifyTrack || localTrack;
 
+  // Only show a real cover when the user has explicitly chosen something
+  const hasExplicitSelection = spotifyTrack !== null || trackId !== "";
+  const coverUrl = hasExplicitSelection ? (activeTrack?.coverUrl || "") : "";
+
   if (!activeTrack && !spotifyToken) return null;
 
   const searchTimerRef = useRef(null);
@@ -1039,7 +1043,11 @@ function Composer({ tracks, onCreate, spotifyToken }) {
 
   return (
     <form className="composer" onSubmit={submit}>
-      <img src={activeTrack?.coverUrl || ""} alt={activeTrack?.title || "Track"} />
+      {coverUrl ? (
+        <img src={coverUrl} alt={activeTrack?.title || "Track"} />
+      ) : (
+        <div className="composer-placeholder">?</div>
+      )}
 
       <div className="composer-fields">
         {spotifyToken && (

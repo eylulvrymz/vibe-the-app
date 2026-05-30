@@ -297,12 +297,24 @@ button {
   background: var(--vibe-panel-2);
 }
 
-.composer img {
+.composer img,
+.composer-placeholder {
   width: 96px;
   height: 96px;
   border-radius: 13px;
   border: 1px solid var(--vibe-line-2);
   align-self: start;
+}
+
+.composer-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--vibe-panel-2);
+  color: var(--vibe-faint);
+  font-size: 32px;
+  font-weight: 300;
+  letter-spacing: 0;
+  user-select: none;
 }
 
 .composer-fields {
