@@ -471,19 +471,19 @@ function AuthScreen({ onLogin, onRegister, spotifyError, onBack }) {
           <h1 className="new-auth-wordmark">Vibe</h1>
           <p className="new-auth-tag">Post the track, mood, and moment — before it disappears.</p>
           <div className="new-covers">
-            <div className="new-cov" style={{ backgroundImage: "linear-gradient(160deg, rgba(255,100,70,.48) 0%, rgba(180,42,100,.58) 55%, rgba(44,16,72,.76) 100%), url('https://upload.wikimedia.org/wikipedia/en/3/33/Night_visions.jpg')" }}>
+            <div className="new-cov" style={{ backgroundImage: "linear-gradient(160deg, rgba(255,100,70,.18) 0%, rgba(180,42,100,.24) 55%, rgba(44,16,72,.38) 100%), url('https://upload.wikimedia.org/wikipedia/en/3/3f/Night_Visions_Album_Cover.jpeg')" }}>
               <span className="new-cov-mood">late-night</span>
               <div className="new-cov-label">
                 Night Visions<span>Imagine Dragons</span>
               </div>
             </div>
-            <div className="new-cov" style={{ backgroundImage: "linear-gradient(160deg, rgba(20,130,240,.44) 0%, rgba(28,200,155,.54) 70%), url('https://upload.wikimedia.org/wikipedia/en/f/f6/Taylor_Swift_-_1989.png')" }}>
+            <div className="new-cov" style={{ backgroundImage: "linear-gradient(160deg, rgba(20,130,240,.18) 0%, rgba(28,200,155,.22) 70%), url('https://upload.wikimedia.org/wikipedia/en/f/f6/Taylor_Swift_-_1989.png')" }}>
               <span className="new-cov-mood">focus</span>
               <div className="new-cov-label">
                 1989<span>Taylor Swift</span>
               </div>
             </div>
-            <div className="new-cov" style={{ backgroundImage: "linear-gradient(160deg, rgba(110,90,255,.46) 0%, rgba(24,200,230,.52) 100%), url('https://upload.wikimedia.org/wikipedia/en/b/b9/A_Head_Full_of_Dreams.png')" }}>
+            <div className="new-cov" style={{ backgroundImage: "linear-gradient(160deg, rgba(110,90,255,.18) 0%, rgba(24,200,230,.22) 100%), url('https://upload.wikimedia.org/wikipedia/en/3/3d/Coldplay_-_A_Head_Full_of_Dreams.png')" }}>
               <span className="new-cov-mood">calm</span>
               <div className="new-cov-label">
                 A Head Full of Dreams<span>Coldplay</span>
@@ -840,8 +840,8 @@ function LandingPage({ onEnter }) {
               <div className="landing-side">
                 <div className="landing-sb">
                   <h5><Flame size={16} />Hot tracks</h5>
-                  <div className="landing-hot"><span className="landing-rk">1</span><span className="landing-th" style={{ backgroundImage: "linear-gradient(135deg,rgba(255,100,70,.5),rgba(180,42,100,.6)), url('https://upload.wikimedia.org/wikipedia/en/3/33/Night_visions.jpg')", backgroundSize: "cover", backgroundPosition: "center" }} /><div><b>Night Visions</b><span>2 likes</span></div></div>
-                  <div className="landing-hot"><span className="landing-rk">2</span><span className="landing-th" style={{ backgroundImage: "linear-gradient(135deg,rgba(20,130,240,.5),rgba(28,200,155,.6)), url('https://upload.wikimedia.org/wikipedia/en/f/f6/Taylor_Swift_-_1989.png')", backgroundSize: "cover", backgroundPosition: "center" }} /><div><b>Amsterdam</b><span>0 likes</span></div></div>
+                  <div className="landing-hot"><span className="landing-rk">1</span><span className="landing-th" style={{ backgroundImage: "linear-gradient(135deg,rgba(255,100,70,.2),rgba(180,42,100,.25)), url('https://upload.wikimedia.org/wikipedia/en/3/3f/Night_Visions_Album_Cover.jpeg')", backgroundSize: "cover", backgroundPosition: "center" }} /><div><b>Night Visions</b><span>2 likes</span></div></div>
+                  <div className="landing-hot"><span className="landing-rk">2</span><span className="landing-th" style={{ backgroundImage: "linear-gradient(135deg,rgba(20,130,240,.2),rgba(28,200,155,.25)), url('https://upload.wikimedia.org/wikipedia/en/f/f6/Taylor_Swift_-_1989.png')", backgroundSize: "cover", backgroundPosition: "center" }} /><div><b>Amsterdam</b><span>0 likes</span></div></div>
                 </div>
                 <div className="landing-sb">
                   <h5><UserPlus size={16} />Suggested</h5>
