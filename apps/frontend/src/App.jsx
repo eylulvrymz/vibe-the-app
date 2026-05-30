@@ -25,6 +25,7 @@ import {
   deletePost,
   followUser,
   getComments,
+  likeComment,
   unfollowUser,
   getFeed,
   getProfile,
@@ -671,6 +672,13 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
     setLocalCommentCount((n) => Math.max(0, n - 1));
   }
 
+  async function handleLikeComment(commentId) {
+    const data = await likeComment(token, post.id, commentId);
+    setComments((prev) => prev.map((c) =>
+      c.id === commentId ? { ...c, likeCount: data.likeCount, likedByMe: data.likedByMe } : c
+    ));
+  }
+
   return (
     <article className="post-card">
       {rank && <div className="rank-badge">#{rank}</div>}
@@ -726,19 +734,35 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
                 <div className="comment-row" key={c.id}>
                   <Avatar user={c.user} />
                   <div className="comment-body">
-                    <strong>{c.user.displayName}</strong>
-                    <span>{c.content}</span>
+                    <div className="comment-header">
+                      <strong>{c.user.displayName}</strong>
+                      <span className="comment-username">@{c.user.username}</span>
+                      <span className="comment-time">{formatDate(c.createdAt)}</span>
+                      {canDelete && (
+                        <button className="delete-btn comment-delete" onClick={() => handleDeleteComment(c.id)} title="Delete comment">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <p className="comment-text">{c.content}</p>
+                    <div className="comment-actions">
+                      <button
+                        className={`comment-like-btn${c.likedByMe ? " liked" : ""}`}
+                        onClick={() => handleLikeComment(c.id)}
+                        disabled={!token}
+                        title="Like comment"
+                      >
+                        <Heart size={13} fill={c.likedByMe ? "currentColor" : "none"} />
+                        {(c.likeCount > 0) && <span>{c.likeCount}</span>}
+                      </button>
+                    </div>
                   </div>
-                  {canDelete && (
-                    <button className="delete-btn comment-delete" onClick={() => handleDeleteComment(c.id)} title="Delete comment">
-                      <Trash2 size={13} />
-                    </button>
-                  )}
                 </div>
               );
             })}
             {token && (
               <form className="comment-form" onSubmit={submitComment}>
+                {currentUser && <Avatar user={currentUser} />}
                 <input
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}

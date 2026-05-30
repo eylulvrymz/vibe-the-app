@@ -161,7 +161,8 @@ public final class Database {
         ResultSet keys = insert.getGeneratedKeys();
         long id = keys.next() ? keys.getLong(1) : 0L;
         PreparedStatement select = connection.prepareStatement(
-            "SELECT c.id, c.content, c.created_at, u.id AS user_id, u.username, u.display_name, u.avatar_key " +
+            "SELECT c.id, c.content, c.created_at, u.id AS user_id, u.username, u.display_name, u.avatar_key, " +
+            "0 AS like_count, 0 AS liked_by_me " +
             "FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?"
         );
         select.setLong(1, id);
@@ -169,15 +170,38 @@ public final class Database {
         return rs.next() ? commentFromResult(rs) : new LinkedHashMap<String, Object>();
     }
 
-    public synchronized List<Map<String, Object>> getComments(long postId) throws SQLException {
+    public synchronized List<Map<String, Object>> getComments(long postId, long currentUserId) throws SQLException {
         PreparedStatement statement = connection.prepareStatement(
-            "SELECT c.id, c.content, c.created_at, u.id AS user_id, u.username, u.display_name, u.avatar_key " +
+            "SELECT c.id, c.content, c.created_at, u.id AS user_id, u.username, u.display_name, u.avatar_key, " +
+            "(SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id) AS like_count, " +
+            "(SELECT COUNT(*) FROM comment_likes cl2 WHERE cl2.comment_id = c.id AND cl2.user_id = ?) AS liked_by_me " +
             "FROM comments c JOIN users u ON u.id = c.user_id WHERE c.post_id = ? ORDER BY c.created_at ASC"
         );
-        statement.setLong(1, postId);
+        statement.setLong(1, currentUserId);
+        statement.setLong(2, postId);
         ResultSet rs = statement.executeQuery();
         List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
         while (rs.next()) result.add(commentFromResult(rs));
+        return result;
+    }
+
+    public synchronized Map<String, Object> likeComment(long userId, long commentId) throws SQLException {
+        if (scalar("SELECT COUNT(*) FROM comment_likes WHERE user_id = ? AND comment_id = ?", userId, commentId) > 0) {
+            PreparedStatement del = connection.prepareStatement("DELETE FROM comment_likes WHERE user_id = ? AND comment_id = ?");
+            del.setLong(1, userId);
+            del.setLong(2, commentId);
+            del.executeUpdate();
+        } else {
+            PreparedStatement ins = connection.prepareStatement("INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)");
+            ins.setLong(1, userId);
+            ins.setLong(2, commentId);
+            ins.executeUpdate();
+        }
+        long likeCount = scalar("SELECT COUNT(*) FROM comment_likes WHERE comment_id = ?", commentId);
+        long likedByMe = scalar("SELECT COUNT(*) FROM comment_likes WHERE user_id = ? AND comment_id = ?", userId, commentId);
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        result.put("likeCount", likeCount);
+        result.put("likedByMe", likedByMe > 0);
         return result;
     }
 
@@ -186,6 +210,8 @@ public final class Database {
         comment.put("id", rs.getLong("id"));
         comment.put("content", rs.getString("content"));
         comment.put("createdAt", rs.getString("created_at"));
+        try { comment.put("likeCount", rs.getInt("like_count")); } catch (SQLException ignored) { comment.put("likeCount", 0); }
+        try { comment.put("likedByMe", rs.getInt("liked_by_me") > 0); } catch (SQLException ignored) { comment.put("likedByMe", false); }
         Map<String, Object> user = new LinkedHashMap<String, Object>();
         user.put("id", rs.getLong("user_id"));
         user.put("username", rs.getString("username"));
@@ -495,7 +521,8 @@ public final class Database {
             "CREATE TABLE IF NOT EXISTS likes (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, post_id))",
             "CREATE TABLE IF NOT EXISTS follows (follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (follower_id, following_id), CHECK (follower_id <> following_id))",
             "CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
-            "CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+            "CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+            "CREATE TABLE IF NOT EXISTS comment_likes (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, comment_id))"
         );
         Statement statement = connection.createStatement();
         for (String sql : statements) {

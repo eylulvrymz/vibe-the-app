@@ -329,6 +329,14 @@ export async function deletePost(token, postId) {
   }
 }
 
+export async function likeComment(token, postId, commentId) {
+  try {
+    return await request(`/posts/${postId}/comments/${commentId}/like`, { method: "POST", token });
+  } catch {
+    return { likeCount: 0, likedByMe: false };
+  }
+}
+
 export async function deleteComment(token, postId, commentId) {
   try {
     return await request(`/posts/${postId}/comments/${commentId}`, { method: "DELETE", token });

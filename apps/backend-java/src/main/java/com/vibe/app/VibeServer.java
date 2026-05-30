@@ -158,8 +158,17 @@ public final class VibeServer {
         }
 
         if ("GET".equals(method) && path.matches("/api/posts/\\d+/comments")) {
+            long currentUserId = optionalUser(exchange);
             long postId = Long.parseLong(path.substring("/api/posts/".length(), path.length() - "/comments".length()));
-            sendJson(exchange, 200, Json.object("comments", database.getComments(postId)));
+            sendJson(exchange, 200, Json.object("comments", database.getComments(postId, currentUserId)));
+            return;
+        }
+
+        if ("POST".equals(method) && path.matches("/api/posts/\\d+/comments/\\d+/like")) {
+            long userId = requireUser(exchange);
+            String[] parts = path.split("/");
+            long commentId = Long.parseLong(parts[5]);
+            sendJson(exchange, 200, database.likeComment(userId, commentId));
             return;
         }
 
