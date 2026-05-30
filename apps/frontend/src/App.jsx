@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   Flame,
   Heart,
   Home,
@@ -25,6 +26,7 @@ import {
   deletePost,
   followUser,
   getComments,
+  getPost,
   likeComment,
   unfollowUser,
   getFeed,
@@ -45,6 +47,8 @@ const assetUrl = (path) => `${import.meta.env.BASE_URL}${path}`;
 export default function App() {
   const [session, setSession] = useState(savedSession);
   const [view, setView] = useState("feed");
+  const [prevView, setPrevView] = useState("feed");
+  const [selectedPostId, setSelectedPostId] = useState(null);
   const [posts, setPosts] = useState([]);
   const [trending, setTrending] = useState([]);
   const [tracks, setTracks] = useState([]);
@@ -221,6 +225,12 @@ export default function App() {
     setProfile(profileData.user);
   }
 
+  function handleOpenPost(postId) {
+    setPrevView(view);
+    setSelectedPostId(postId);
+    setView("post");
+  }
+
   async function openProfile(userId) {
     setSelectedProfileId(userId);
     setView("profile");
@@ -251,15 +261,12 @@ export default function App() {
   const activePosts = view === "trending" ? trending : posts;
   const activeSpotifyId = isPlaying ? playingTrackId : null;
   const heading =
-    view === "trending"
-      ? "Trending now"
-      : view === "profile"
-        ? profile?.id === session.user.id
-          ? "Your profile"
-          : profile?.displayName || "Profile"
-        : view === "search"
-          ? "Search"
-          : "Home feed";
+    view === "post" ? "Post"
+    : view === "trending" ? "Trending now"
+    : view === "profile"
+      ? profile?.id === session.user.id ? "Your profile" : profile?.displayName || "Profile"
+      : view === "search" ? "Search"
+      : "Home feed";
 
   return (
     <div className="app-shell">
@@ -278,7 +285,18 @@ export default function App() {
 
         {status && <div className="status-strip">{status}</div>}
 
-        {view === "profile" ? (
+        {view === "post" ? (
+          <PostDetailView
+            postId={selectedPostId}
+            token={session.token}
+            currentUser={session.user}
+            onBack={() => setView(prevView)}
+            onLike={handleLike}
+            onNavigate={openProfile}
+            activeSpotifyId={activeSpotifyId}
+            onDelete={handleDeletePost}
+          />
+        ) : view === "profile" ? (
           <ProfileView
             profile={profile}
             currentUser={session.user}
@@ -289,8 +307,8 @@ export default function App() {
             onPlay={deviceId ? handlePlay : null}
             activeSpotifyId={activeSpotifyId}
             token={session.token}
-            currentUser={session.user}
             onDelete={handleDeletePost}
+            onOpenPost={handleOpenPost}
           />
         ) : view === "search" ? (
           <SearchView results={results} onFollow={handleFollow} onUnfollow={handleUnfollow} onNavigate={openProfile} />
@@ -311,6 +329,7 @@ export default function App() {
             token={session.token}
             currentUser={session.user}
             onDelete={handleDeletePost}
+            onOpenPost={handleOpenPost}
           />
         )}
       </main>
@@ -453,7 +472,7 @@ function Sidebar({ view, setView, user, onLogout, onOwnProfile }) {
   );
 }
 
-function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId, token, currentUser, onDelete }) {
+function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId, token, currentUser, onDelete, onOpenPost }) {
   return (
     <div className="content-grid">
       <section className="feed-column">
@@ -471,6 +490,7 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
               token={token}
               currentUser={currentUser}
               onDelete={onDelete}
+              onOpenPost={onOpenPost}
             />
           ))}
         </div>
@@ -630,74 +650,10 @@ function Composer({ tracks, onCreate, spotifyToken }) {
   );
 }
 
-function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, token, currentUser, onDelete }) {
+function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSpotifyId, token, currentUser, onDelete }) {
   const spotifyId = post.track.spotifyId;
   const [showEmbed, setShowEmbed] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState(null);
-  const [commentText, setCommentText] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [commentError, setCommentError] = useState("");
-  const [localCommentCount, setLocalCommentCount] = useState(post.commentCount || 0);
-  const [replyingTo, setReplyingTo] = useState(null);
-  const [replyText, setReplyText] = useState("");
-
   const isPostOwner = currentUser && post.user.id === currentUser.id;
-
-  async function loadComments() {
-    if (comments !== null) { setShowComments((p) => !p); return; }
-    const data = await getComments(token, post.id);
-    setComments(data.comments || []);
-    setShowComments(true);
-  }
-
-  async function submitComment(e) {
-    e.preventDefault();
-    if (!commentText.trim()) return;
-    setSubmitting(true);
-    setCommentError("");
-    try {
-      const data = await addComment(token, post.id, commentText.trim(), currentUser);
-      setComments((prev) => [...(prev || []), data.comment]);
-      setLocalCommentCount((n) => n + 1);
-      setCommentText("");
-    } catch {
-      setCommentError("Session expired — please log out and log back in.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleDeleteComment(commentId) {
-    await deleteComment(token, post.id, commentId);
-    setComments((prev) => prev.filter((c) => c.id !== commentId));
-    setLocalCommentCount((n) => Math.max(0, n - 1));
-  }
-
-  async function submitReply(e, parentId) {
-    e.preventDefault();
-    if (!replyText.trim()) return;
-    setSubmitting(true);
-    setCommentError("");
-    try {
-      const data = await addComment(token, post.id, replyText.trim(), currentUser, parentId);
-      setComments((prev) => [...prev, data.comment]);
-      setLocalCommentCount((n) => n + 1);
-      setReplyText("");
-      setReplyingTo(null);
-    } catch {
-      setCommentError("Session expired — please log out and log back in.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleLikeComment(commentId) {
-    const data = await likeComment(token, post.id, commentId);
-    setComments((prev) => prev.map((c) =>
-      c.id === commentId ? { ...c, likeCount: data.likeCount, likedByMe: data.likedByMe } : c
-    ));
-  }
 
   return (
     <article className="post-card">
@@ -725,18 +681,18 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
           />
         )}
         <div className="post-actions">
-          <button className={post.likedByMe ? "liked" : ""} onClick={() => onLike(post.id)} title={post.likedByMe ? "Unlike post" : "Like post"}>
+          <button className={post.likedByMe ? "liked" : ""} onClick={() => onLike(post.id)} title={post.likedByMe ? "Unlike" : "Like"}>
             <Heart size={18} fill={post.likedByMe ? "currentColor" : "none"} />
             {post.likeCount}
           </button>
           {spotifyId && (
-            <button className={`play-btn${showEmbed ? " playing" : ""}`} onClick={() => setShowEmbed((p) => !p)} title={showEmbed ? "Hide player" : "Play preview"}>
+            <button className={`play-btn${showEmbed ? " playing" : ""}`} onClick={() => setShowEmbed((p) => !p)} title={showEmbed ? "Hide player" : "Play"}>
               {showEmbed ? <Pause size={18} /> : <Play size={18} />}
             </button>
           )}
-          <button className="comment-btn" onClick={loadComments} title="Comments">
+          <button className="comment-btn" onClick={() => onOpenPost && onOpenPost(post.id)} title="View replies">
             <MessageSquare size={18} />
-            <span>{localCommentCount}</span>
+            <span>{post.commentCount || 0}</span>
           </button>
           <span>{post.track.genre}</span>
           <span>{formatDate(post.createdAt)}</span>
@@ -746,114 +702,160 @@ function PostCard({ post, rank, onLike, onNavigate, onPlay, activeSpotifyId, tok
             </button>
           )}
         </div>
-        {showComments && (
-          <div className="comments-section">
-            {(comments || []).filter((c) => !c.parentId).map((c) => {
-              const canDelete = currentUser && (c.user.id === currentUser.id || isPostOwner);
-              const replies = (comments || []).filter((r) => Number(r.parentId) === Number(c.id));
-              const isReplying = replyingTo === c.id;
-              return (
-                <div className="comment-thread" key={c.id}>
-                  <div className="comment-row">
-                    <Avatar user={c.user} />
-                    <div className="comment-body">
-                      <div className="comment-header">
-                        <strong>{c.user.displayName}</strong>
-                        <span className="comment-username">@{c.user.username}</span>
-                        <span className="comment-time">{formatDate(c.createdAt)}</span>
-                        {canDelete && (
-                          <button className="delete-btn comment-delete" onClick={() => handleDeleteComment(c.id)} title="Delete comment">
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </div>
-                      <p className="comment-text">{c.content}</p>
-                      <div className="comment-actions">
-                        <button className={`comment-like-btn${c.likedByMe ? " liked" : ""}`} onClick={() => handleLikeComment(c.id)} disabled={!token} title="Like">
-                          <Heart size={13} fill={c.likedByMe ? "currentColor" : "none"} />
-                          {c.likeCount > 0 && <span>{c.likeCount}</span>}
-                        </button>
-                        {token && (
-                          <button className={`comment-reply-btn${isReplying ? " active" : ""}`} onClick={() => { setReplyingTo(isReplying ? null : c.id); setReplyText(""); }} title="Reply">
-                            <MessageSquare size={13} />
-                            <span>Reply</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  {(replies.length > 0 || isReplying) && (
-                    <div className="reply-thread">
-                      {replies.map((r) => {
-                        const canDelReply = currentUser && (r.user.id === currentUser.id || isPostOwner);
-                        return (
-                          <div className="comment-row reply-row" key={r.id}>
-                            <Avatar user={r.user} />
-                            <div className="comment-body">
-                              <div className="comment-header">
-                                <strong>{r.user.displayName}</strong>
-                                <span className="comment-username">@{r.user.username}</span>
-                                <span className="comment-time">{formatDate(r.createdAt)}</span>
-                                {canDelReply && (
-                                  <button className="delete-btn comment-delete" onClick={() => handleDeleteComment(r.id)} title="Delete">
-                                    <Trash2 size={13} />
-                                  </button>
-                                )}
-                              </div>
-                              <p className="comment-text">{r.content}</p>
-                              <div className="comment-actions">
-                                <button className={`comment-like-btn${r.likedByMe ? " liked" : ""}`} onClick={() => handleLikeComment(r.id)} disabled={!token}>
-                                  <Heart size={13} fill={r.likedByMe ? "currentColor" : "none"} />
-                                  {r.likeCount > 0 && <span>{r.likeCount}</span>}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {isReplying && (
-                        <form className="reply-form" onSubmit={(e) => submitReply(e, c.id)}>
-                          {currentUser && <Avatar user={currentUser} />}
-                          <input
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            placeholder={`Reply to @${c.user.username}...`}
-                            autoFocus
-                            disabled={submitting}
-                          />
-                          <button type="submit" disabled={submitting || !replyText.trim()}>
-                            <Plus size={15} />
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {token && (
-              <form className="comment-form" onSubmit={submitComment}>
-                {currentUser && <Avatar user={currentUser} />}
-                <input
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Add a comment..."
-                  disabled={submitting}
-                />
-                <button type="submit" disabled={submitting || !commentText.trim()}>
-                  <Plus size={16} />
-                </button>
-              </form>
-            )}
-            {commentError && <p className="comment-error">{commentError}</p>}
-          </div>
-        )}
       </div>
     </article>
   );
 }
 
-function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete }) {
+function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate, activeSpotifyId, onDelete }) {
+  const [post, setPost] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setPost(null);
+    setComments([]);
+    Promise.all([getPost(token, postId), getComments(token, postId)]).then(([pd, cd]) => {
+      setPost(pd.post);
+      setComments(cd.comments || []);
+    });
+  }, [postId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isPostOwner = currentUser && post && Number(post.user.id) === Number(currentUser.id);
+
+  const getParentUsername = (c) => {
+    if (!c.parentId) return null;
+    const p = comments.find((x) => Number(x.id) === Number(c.parentId));
+    return p ? p.user.username : null;
+  };
+
+  async function submitReply(parentId) {
+    if (!replyText.trim()) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const data = await addComment(token, postId, replyText.trim(), currentUser, parentId || null);
+      setComments((prev) => [...prev, data.comment]);
+      setPost((p) => p ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p);
+      setReplyText("");
+      setReplyingTo(null);
+    } catch {
+      setError("Session expired — please log out and log back in.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleLikeComment(commentId) {
+    const data = await likeComment(token, postId, commentId);
+    setComments((prev) => prev.map((c) => c.id === commentId ? { ...c, ...data } : c));
+  }
+
+  async function handleDeleteComment(commentId) {
+    await deleteComment(token, postId, commentId);
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+    setPost((p) => p ? { ...p, commentCount: Math.max(0, (p.commentCount || 0) - 1) } : p);
+  }
+
+  return (
+    <div className="post-detail-view">
+      <div className="post-detail-header">
+        <button className="back-btn" onClick={onBack}>
+          <ArrowLeft size={18} /> Back
+        </button>
+      </div>
+
+      {post ? (
+        <PostCard post={post} token={token} currentUser={currentUser} onLike={onLike} onNavigate={onNavigate} activeSpotifyId={activeSpotifyId} onDelete={onDelete} onOpenPost={null} />
+      ) : (
+        <div className="post-detail-loading">Loading...</div>
+      )}
+
+      {token && (
+        <div className="detail-reply-composer">
+          {currentUser && <Avatar user={currentUser} />}
+          <input
+            className="detail-reply-input"
+            value={replyingTo === null ? replyText : ""}
+            onChange={(e) => { setReplyingTo(null); setReplyText(e.target.value); }}
+            placeholder="Post your reply..."
+            disabled={submitting}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitReply(null); } }}
+          />
+          <button className="detail-reply-send" onClick={() => submitReply(null)} disabled={submitting || !replyText.trim() || replyingTo !== null}>
+            Reply
+          </button>
+        </div>
+      )}
+
+      <div className="tweet-thread">
+        {comments.map((c) => {
+          const canDelete = currentUser && (Number(c.user.id) === Number(currentUser.id) || isPostOwner);
+          const parentUsername = getParentUsername(c);
+          const isReplying = replyingTo === c.id;
+          return (
+            <div key={c.id} className="tweet-reply-card">
+              <div className="tweet-reply-main">
+                <button className="avatar-button" onClick={() => onNavigate(c.user.id)}>
+                  <Avatar user={c.user} />
+                </button>
+                <div className="tweet-reply-body">
+                  <div className="tweet-reply-header">
+                    <strong className="clickable" onClick={() => onNavigate(c.user.id)}>{c.user.displayName}</strong>
+                    <span className="comment-username">@{c.user.username}</span>
+                    <span className="comment-time">{formatDate(c.createdAt)}</span>
+                    {canDelete && (
+                      <button className="delete-btn" onClick={() => handleDeleteComment(c.id)} title="Delete">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                  {parentUsername && <p className="replying-to-label">Replying to <span>@{parentUsername}</span></p>}
+                  <p className="comment-text">{c.content}</p>
+                  <div className="tweet-reply-actions">
+                    <button className={`comment-like-btn${c.likedByMe ? " liked" : ""}`} onClick={() => handleLikeComment(c.id)} disabled={!token}>
+                      <Heart size={14} fill={c.likedByMe ? "currentColor" : "none"} />
+                      {c.likeCount > 0 && <span>{c.likeCount}</span>}
+                    </button>
+                    {token && (
+                      <button className={`comment-reply-btn${isReplying ? " active" : ""}`} onClick={() => { setReplyingTo(isReplying ? null : c.id); setReplyText(""); }}>
+                        <MessageSquare size={13} />
+                        <span>Reply</span>
+                      </button>
+                    )}
+                  </div>
+                  {isReplying && (
+                    <div className="inline-reply-form">
+                      {currentUser && <Avatar user={currentUser} />}
+                      <input
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder={`Reply to @${c.user.username}...`}
+                        autoFocus
+                        disabled={submitting}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitReply(c.id); } }}
+                      />
+                      <button onClick={() => submitReply(c.id)} disabled={submitting || !replyText.trim()}>
+                        <Plus size={15} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {error && <p className="comment-error">{error}</p>}
+        {post && comments.length === 0 && <p className="no-replies">No replies yet — be the first!</p>}
+      </div>
+    </div>
+  );
+}
+
+function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete, onOpenPost }) {
   if (!profile) {
     return null;
   }
@@ -910,7 +912,7 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
 
       <div className="post-list compact">
         {(profile.posts || []).map((post) => (
-          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} token={token} currentUser={currentUser} onDelete={onDelete} />
+          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} token={token} currentUser={currentUser} onDelete={onDelete} onOpenPost={onOpenPost} />
         ))}
       </div>
     </div>

@@ -504,6 +504,10 @@ public final class Database {
         return rs.next() ? rs.getLong(1) : 0L;
     }
 
+    public synchronized Map<String, Object> getPost(long postId, long currentUserId) throws SQLException {
+        return postById(postId, currentUserId);
+    }
+
     public synchronized void saveSession(String token, long userId) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("INSERT OR REPLACE INTO sessions (token, user_id) VALUES (?, ?)");
         statement.setString(1, token);

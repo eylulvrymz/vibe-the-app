@@ -204,6 +204,14 @@ export async function register(displayName, username, password, genres) {
   }
 }
 
+export async function getPost(token, postId) {
+  try {
+    return await request(`/posts/${postId}`, { token });
+  } catch {
+    return { post: null };
+  }
+}
+
 export async function getFeed(token) {
   try {
     return await request("/feed", { token });

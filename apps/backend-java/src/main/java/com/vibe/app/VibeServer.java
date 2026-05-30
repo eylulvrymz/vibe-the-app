@@ -122,6 +122,15 @@ public final class VibeServer {
             return;
         }
 
+        if ("GET".equals(method) && path.matches("/api/posts/\\d+")) {
+            long currentUserId = optionalUser(exchange);
+            long postId = Long.parseLong(path.substring("/api/posts/".length()));
+            Map<String, Object> p = database.getPost(postId, currentUserId);
+            if (p == null) throw new ApiException(404, "Post not found");
+            sendJson(exchange, 200, Json.object("post", p));
+            return;
+        }
+
         if ("GET".equals(method) && "/api/trending".equals(path)) {
             long userId = optionalUser(exchange);
             sendJson(exchange, 200, Json.object("posts", database.trending(userId)));

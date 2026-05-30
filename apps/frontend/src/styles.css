@@ -1225,6 +1225,162 @@ button {
   color: #f87171;
 }
 
+/* ── Post Detail View ─────────────────────────────── */
+.post-detail-view {
+  display: flex;
+  flex-direction: column;
+  max-width: 680px;
+}
+
+.post-detail-header {
+  display: flex;
+  align-items: center;
+  padding: 4px 0 14px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 6px 12px 6px 0;
+  border-radius: 20px;
+  transition: opacity 0.15s;
+}
+.back-btn:hover { opacity: 0.7; }
+
+.post-detail-loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.detail-reply-composer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 8px 0;
+}
+
+.detail-reply-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 9px 16px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.detail-reply-input:focus { border-color: var(--accent); }
+
+.detail-reply-send {
+  background: var(--accent);
+  color: #000;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 18px;
+  border-radius: 20px;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+.detail-reply-send:disabled { opacity: 0.35; cursor: default; }
+
+.tweet-thread {
+  display: flex;
+  flex-direction: column;
+}
+
+.tweet-reply-card {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tweet-reply-main {
+  display: flex;
+  gap: 12px;
+}
+
+.tweet-reply-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tweet-reply-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.tweet-reply-header strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tweet-reply-header strong.clickable { cursor: pointer; }
+.tweet-reply-header strong.clickable:hover { text-decoration: underline; }
+
+.replying-to-label {
+  margin: 0 0 5px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.replying-to-label span { color: var(--accent); }
+
+.tweet-reply-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 9px;
+}
+
+.inline-reply-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.inline-reply-form input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.inline-reply-form input:focus { border-color: var(--accent); }
+
+.inline-reply-form button {
+  background: var(--accent);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: #000;
+  flex-shrink: 0;
+}
+
+.no-replies {
+  padding: 28px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .follow-profile-button.following {
   background: transparent;
   border: 1px solid var(--border);
