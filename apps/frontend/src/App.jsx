@@ -1040,6 +1040,7 @@ function Composer({ tracks, onCreate, spotifyToken }) {
   return (
     <form className="composer" onSubmit={submit}>
       <img src={activeTrack?.coverUrl || ""} alt={activeTrack?.title || "Track"} />
+
       <div className="composer-fields">
         {spotifyToken && (
           <div className="spotify-search-row">
@@ -1058,12 +1059,7 @@ function Composer({ tracks, onCreate, spotifyToken }) {
         {spotifyResults.length > 0 && (
           <div className="spotify-results">
             {spotifyResults.map((track) => (
-              <button
-                key={track.spotifyId}
-                type="button"
-                className="spotify-result-item"
-                onClick={() => selectSpotifyTrack(track)}
-              >
+              <button key={track.spotifyId} type="button" className="spotify-result-item" onClick={() => selectSpotifyTrack(track)}>
                 <img src={track.coverUrl} alt={track.title} />
                 <div>
                   <strong>{track.title}</strong>
@@ -1080,22 +1076,21 @@ function Composer({ tracks, onCreate, spotifyToken }) {
               <button type="button" onClick={() => setSpotifyTrack(null)} title="Remove">×</button>
             </div>
           ) : (
-            <select
-              value={trackId || (localTrack?.id ?? "")}
-              onChange={(e) => setTrackId(e.target.value)}
-            >
+            <select value={trackId || (localTrack?.id ?? "")} onChange={(e) => setTrackId(e.target.value)}>
               {tracks.map((t) => (
-                <option key={t.id} value={t.id}>{t.title} - {t.artist}</option>
+                <option key={t.id} value={t.id}>{t.title} — {t.artist}</option>
               ))}
             </select>
           )}
-          <input className="c-mood" value={mood} onChange={(e) => setMood(e.target.value)} aria-label="Mood" placeholder="Mood…" />
-          <button className="icon-primary" type="submit" title="Post vibe">
-            <Plus size={18} />
-          </button>
+          <input value={mood} onChange={(e) => setMood(e.target.value)} aria-label="Mood" placeholder="Mood…" />
         </div>
         <textarea value={caption} onChange={(e) => setCaption(e.target.value)} aria-label="Caption" placeholder="What's this track doing to you right now?" />
       </div>
+
+      {/* Post button — 3rd grid column, aligns to bottom of fields */}
+      <button className="icon-primary" type="submit" title="Post vibe">
+        <Plus size={20} />
+      </button>
     </form>
   );
 }

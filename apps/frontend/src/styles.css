@@ -276,9 +276,9 @@ button {
 
 .composer {
   display: grid;
-  grid-template-columns: 96px 1fr;
+  grid-template-columns: 96px minmax(0, 1fr) 44px;
   gap: 16px;
-  align-items: start;
+  align-items: end;
   background: linear-gradient(180deg, var(--vibe-panel), var(--vibe-bg-2));
   border: 1px solid var(--vibe-line);
   border-radius: 20px;
@@ -302,6 +302,7 @@ button {
   height: 96px;
   border-radius: 13px;
   border: 1px solid var(--vibe-line-2);
+  align-self: start;
 }
 
 .composer-fields {
@@ -312,16 +313,15 @@ button {
 }
 
 .composer-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 136px;
   gap: 8px;
-  align-items: center;
 }
 
 .composer select,
 .composer input,
 .composer textarea,
 .auth-form input {
-  flex: 1;
   width: 100%;
   min-width: 0;
   color: var(--vibe-ink);
@@ -342,11 +342,9 @@ button {
   padding: 0 12px;
 }
 
-.composer select { appearance: none; cursor: pointer; }
+.composer select { cursor: pointer; }
 .composer input:focus, .composer textarea:focus, .composer select:focus { border-color: var(--vibe-teal); }
 .composer input::placeholder, .composer textarea::placeholder { color: var(--vibe-faint); }
-
-.c-mood { width: 136px; flex: none !important; }
 
 .composer textarea {
   min-height: 66px;
@@ -355,10 +353,9 @@ button {
 }
 
 .icon-primary {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  align-self: flex-end;
+  width: 44px;
+  height: 44px;
+  align-self: end;
   border-radius: 11px;
   border: none;
   cursor: pointer;
@@ -1129,12 +1126,12 @@ button {
   .search-pill { width: 100%; }
 
   .composer {
-    grid-template-columns: 76px 1fr;
-    gap: 12px;
+    grid-template-columns: 76px minmax(0, 1fr) 44px;
+    gap: 10px;
   }
 
   .composer img { width: 76px; height: 76px; }
-  .composer-row { flex-wrap: wrap; }
+  .composer-row { grid-template-columns: 1fr; }
 
   .post-card {
     grid-template-columns: 88px minmax(0, 1fr);
