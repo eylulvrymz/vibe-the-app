@@ -1519,75 +1519,110 @@ button {
 }
 .detail-reply-send:disabled { opacity: 0.35; cursor: default; }
 
+/* ════════════════════════════════════════════════════════
+   TWITTER/X-STYLE COMMENT THREAD  (ct-* classes)
+════════════════════════════════════════════════════════ */
 .tweet-thread {
   display: flex;
   flex-direction: column;
+  padding-top: 4px;
 }
 
-.tweet-reply-card {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-/* ── Nested reply thread ── */
-.tweet-reply-card.nested {
-  border-bottom: none;
-  padding: 10px 0;
-}
-.tweet-reply-card.nested:last-child { padding-bottom: 0; }
-
-.comment-replies {
-  margin-top: 4px;
-  margin-left: 44px;          /* align with body text past the avatar */
-  padding-left: 16px;
-  border-left: 2px solid var(--vibe-line);
-  display: flex;
-  flex-direction: column;
-}
-
-/* Expand / collapse toggle button */
-.comment-expand-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--vibe-teal);
-  background: transparent;
-  border: none;
-  padding: 2px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background .15s;
-}
-.comment-expand-btn:hover { background: rgba(46,230,198,.1); }
-
-.tweet-reply-main {
+/* Each comment item: avatar column + body column */
+.ct-item {
   display: flex;
   gap: 12px;
+  min-height: 0;
 }
 
-.tweet-reply-body {
+/* Left column: avatar + connector line */
+.ct-left {
+  flex-shrink: 0;
+  width: 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Vertical connector line between avatars */
+.ct-line {
+  flex: 1;
+  width: 2px;
+  min-height: 12px;
+  background: var(--vibe-line);
+  border-radius: 1px;
+  margin: 4px 0;
+}
+
+/* Right column: tweet-style content */
+.ct-body {
   flex: 1;
   min-width: 0;
+  padding-bottom: 16px;
+  padding-top: 2px;
 }
 
-.tweet-reply-header {
+/* Header row: name · handle · time · delete */
+.ct-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
-.tweet-reply-header strong {
+.ct-name {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--vibe-ink);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1;
+}
+.ct-name:hover { text-decoration: underline; }
+
+.ct-handle {
+  font-size: 13px;
+  color: var(--vibe-muted);
 }
 
-.tweet-reply-header strong.clickable { cursor: pointer; }
-.tweet-reply-header strong.clickable:hover { text-decoration: underline; }
+.ct-time {
+  font-size: 12px;
+  color: var(--vibe-faint);
+}
 
+/* "Replying to @user" — teal label so context is always clear */
+.ct-replying-to {
+  font-size: 13px;
+  color: var(--vibe-muted);
+  margin: 0 0 6px;
+}
+.ct-replying-to span {
+  color: var(--vibe-teal);
+  cursor: pointer;
+}
+.ct-replying-to span:hover { text-decoration: underline; }
+
+/* Comment text — post-like size and spacing */
+.ct-text {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--vibe-ink);
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Action row */
+.ct-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ── Legacy classes kept for safety (no longer rendered) ── */
 .replying-to-label {
   margin: 0 0 5px;
   font-size: 13px;
