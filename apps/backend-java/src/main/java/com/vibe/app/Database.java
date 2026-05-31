@@ -74,7 +74,7 @@ public final class Database {
     }
 
     public synchronized List<Map<String, Object>> trending(long currentUserId) throws SQLException {
-        return posts("ORDER BY like_count DESC, p.created_at DESC, p.id DESC", currentUserId, 10);
+        return posts("WHERE p.track_id IS NOT NULL ORDER BY like_count DESC, p.created_at DESC, p.id DESC", currentUserId, 10);
     }
 
     public synchronized Map<String, Object> createPost(long userId, long trackId, String mood, String caption) throws SQLException {
