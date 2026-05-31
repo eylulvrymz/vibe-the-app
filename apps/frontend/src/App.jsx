@@ -1310,10 +1310,13 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  // Set of comment IDs whose direct replies are expanded
+  const [expanded, setExpanded] = useState(new Set());
 
   useEffect(() => {
     setPost(null);
     setComments([]);
+    setExpanded(new Set());
     Promise.all([getPost(token, postId), getComments(token, postId)]).then(([pd, cd]) => {
       setPost(pd.post);
       setComments(cd.comments || []);
@@ -1322,16 +1325,12 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
 
   const isPostOwner = currentUser && post && Number(post.user.id) === Number(currentUser.id);
 
-  // BFS — all descendants of a root comment, in order
-  function getDescendants(rootId, allComments) {
-    const result = [];
-    const queue = [Number(rootId)];
-    while (queue.length > 0) {
-      const cur = queue.shift();
-      const children = allComments.filter((c) => Number(c.parentId) === cur);
-      for (const child of children) { result.push(child); queue.push(Number(child.id)); }
-    }
-    return result;
+  function toggleExpand(id) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
 
   async function submitReply(parentId) {
@@ -1342,6 +1341,8 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
       const data = await addComment(token, postId, replyText.trim(), currentUser, parentId || null);
       setComments((prev) => [...prev, data.comment]);
       setPost((p) => (p ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
+      // Auto-expand the parent so the new reply is immediately visible
+      if (parentId) setExpanded((prev) => new Set([...prev, Number(parentId)]));
       setReplyText("");
       setReplyingTo(null);
     } catch {
@@ -1362,80 +1363,114 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
     setPost((p) => (p ? { ...p, commentCount: Math.max(0, (p.commentCount || 0) - 1) } : p));
   }
 
-  // Render a single comment item in Twitter/X thread style
-  function renderComment(c, hasLineBelow) {
+  // Render a comment card + its expandable replies (recursive)
+  function renderComment(c) {
     const canDelete = currentUser && (Number(c.user.id) === Number(currentUser.id) || isPostOwner);
     const isReplying = replyingTo === c.id;
+    const isExpanded = expanded.has(Number(c.id));
+    const directReplies = comments.filter((x) => Number(x.parentId) === Number(c.id));
+    const hasReplies = directReplies.length > 0;
     const parentComment = c.parentId ? comments.find((x) => Number(x.id) === Number(c.parentId)) : null;
 
     return (
-      <div key={c.id} className="ct-item">
-        {/* Left column: avatar + optional connector line */}
-        <div className="ct-left">
-          <button className="avatar-button" onClick={() => onNavigate(c.user.id)}>
+      <div key={c.id} className="cc-group">
+        {/* ── Comment card (click body to expand replies) ── */}
+        <div
+          className={`cc-card${hasReplies ? " has-replies" : ""}${isExpanded ? " expanded" : ""}`}
+          onClick={hasReplies ? () => toggleExpand(c.id) : undefined}
+          role={hasReplies ? "button" : undefined}
+        >
+          {/* Avatar */}
+          <button
+            className="avatar-button cc-avatar"
+            onClick={(e) => { e.stopPropagation(); onNavigate(c.user.id); }}
+            title={`View ${c.user.displayName}'s profile`}
+          >
             <Avatar user={c.user} />
           </button>
-          {hasLineBelow && <div className="ct-line" />}
-        </div>
 
-        {/* Right column: tweet-style content */}
-        <div className="ct-body">
-          <div className="ct-header">
-            <button className="ct-name" onClick={() => onNavigate(c.user.id)}>{c.user.displayName}</button>
-            <span className="ct-handle">@{c.user.username}</span>
-            <span className="ct-time">· {formatDate(c.createdAt)}</span>
-            {canDelete && (
-              <button className="delete-btn" onClick={() => handleDeleteComment(c.id)} title="Delete">
-                <Trash2 size={13} />
+          {/* Content */}
+          <div className="cc-content">
+            <div className="cc-header">
+              <button className="cc-name" onClick={(e) => { e.stopPropagation(); onNavigate(c.user.id); }}>
+                {c.user.displayName}
               </button>
-            )}
-          </div>
-
-          {/* "Replying to @user" — shown on every reply so context is never lost */}
-          {parentComment && (
-            <p className="ct-replying-to">
-              Replying to <span>@{parentComment.user.username}</span>
-            </p>
-          )}
-
-          <p className="ct-text">{c.content}</p>
-
-          <div className="ct-actions">
-            <button
-              className={`comment-like-btn${c.likedByMe ? " liked" : ""}`}
-              onClick={() => handleLikeComment(c.id)}
-              disabled={!token}
-            >
-              <Heart size={14} fill={c.likedByMe ? "currentColor" : "none"} />
-              {c.likeCount > 0 && <span>{c.likeCount}</span>}
-            </button>
-            {token && (
-              <button
-                className={`comment-reply-btn${isReplying ? " active" : ""}`}
-                onClick={() => { setReplyingTo(isReplying ? null : c.id); setReplyText(""); }}
-              >
-                <MessageSquare size={13} /><span>Reply</span>
-              </button>
-            )}
-          </div>
-
-          {isReplying && (
-            <div className="inline-reply-form">
-              {currentUser && <Avatar user={currentUser} />}
-              <input
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder={`Reply to @${c.user.username}…`}
-                autoFocus
-                disabled={submitting}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitReply(c.id); } }}
-              />
-              <button onClick={() => submitReply(c.id)} disabled={submitting || !replyText.trim()}>
-                <Plus size={15} />
-              </button>
+              <span className="cc-handle">@{c.user.username}</span>
+              <span className="cc-time">· {formatDate(c.createdAt)}</span>
+              {canDelete && (
+                <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteComment(c.id); }} title="Delete">
+                  <Trash2 size={13} />
+                </button>
+              )}
             </div>
-          )}
+
+            {/* "Replying to @user" — always visible so context is clear */}
+            {parentComment && (
+              <p className="cc-replying-to">
+                Replying to{" "}
+                <button onClick={(e) => { e.stopPropagation(); onNavigate(parentComment.user.id); }}>
+                  @{parentComment.user.username}
+                </button>
+              </p>
+            )}
+
+            <p className="cc-text">{c.content}</p>
+
+            <div className="cc-actions">
+              <button
+                className={`comment-like-btn${c.likedByMe ? " liked" : ""}`}
+                onClick={(e) => { e.stopPropagation(); handleLikeComment(c.id); }}
+                disabled={!token}
+              >
+                <Heart size={14} fill={c.likedByMe ? "currentColor" : "none"} />
+                {c.likeCount > 0 && <span>{c.likeCount}</span>}
+              </button>
+
+              {token && (
+                <button
+                  className={`comment-reply-btn${isReplying ? " active" : ""}`}
+                  onClick={(e) => { e.stopPropagation(); setReplyingTo(isReplying ? null : c.id); setReplyText(""); }}
+                >
+                  <MessageSquare size={13} /><span>Reply</span>
+                </button>
+              )}
+
+              {/* Reply count chip — also acts as expand toggle */}
+              {hasReplies && (
+                <span className="cc-reply-count" onClick={(e) => { e.stopPropagation(); toggleExpand(c.id); }}>
+                  <MessageSquare size={12} />
+                  {directReplies.length} {directReplies.length === 1 ? "reply" : "replies"}
+                  <span className="cc-chevron">{isExpanded ? "▲" : "▼"}</span>
+                </span>
+              )}
+            </div>
+
+            {/* Inline reply form */}
+            {isReplying && (
+              <div className="inline-reply-form" onClick={(e) => e.stopPropagation()}>
+                {currentUser && <Avatar user={currentUser} />}
+                <input
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder={`Reply to @${c.user.username}…`}
+                  autoFocus
+                  disabled={submitting}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitReply(c.id); } }}
+                />
+                <button onClick={(e) => { e.stopPropagation(); submitReply(c.id); }} disabled={submitting || !replyText.trim()}>
+                  <Plus size={15} />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* ── Direct replies — only for THIS comment, visible when expanded ── */}
+        {isExpanded && hasReplies && (
+          <div className="cc-replies">
+            {directReplies.map((r) => renderComment(r))}
+          </div>
+        )}
       </div>
     );
   }
@@ -1456,6 +1491,7 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
         <div className="post-detail-loading">Loading…</div>
       )}
 
+      {/* Top-level reply bar */}
       {token && (
         <div className="detail-reply-composer">
           {currentUser && <Avatar user={currentUser} />}
@@ -1477,12 +1513,9 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
         </div>
       )}
 
-      {/* Twitter/X-style threaded comment list */}
+      {/* Comment list — each card expands its own replies on click */}
       <div className="tweet-thread">
-        {rootComments.map((root) => {
-          const thread = [root, ...getDescendants(root.id, comments)];
-          return thread.map((c, idx) => renderComment(c, idx < thread.length - 1));
-        })}
+        {rootComments.map((c) => renderComment(c))}
         {error && <p className="comment-error">{error}</p>}
         {post && comments.length === 0 && <p className="no-replies">No replies yet — be the first!</p>}
       </div>

@@ -1520,58 +1520,71 @@ button {
 .detail-reply-send:disabled { opacity: 0.35; cursor: default; }
 
 /* ════════════════════════════════════════════════════════
-   TWITTER/X-STYLE COMMENT THREAD  (ct-* classes)
+   POST-STYLE COMMENT CARDS  (cc-* classes)
 ════════════════════════════════════════════════════════ */
 .tweet-thread {
   display: flex;
   flex-direction: column;
-  padding-top: 4px;
+  gap: 8px;
+  padding-top: 8px;
 }
 
-/* Each comment item: avatar column + body column */
-.ct-item {
-  display: flex;
-  gap: 12px;
-  min-height: 0;
-}
-
-/* Left column: avatar + connector line */
-.ct-left {
-  flex-shrink: 0;
-  width: 38px;
+/* Comment group: card + optional expanded replies */
+.cc-group {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 0;
 }
 
-/* Vertical connector line between avatars */
-.ct-line {
-  flex: 1;
-  width: 2px;
-  min-height: 12px;
-  background: var(--vibe-line);
-  border-radius: 1px;
-  margin: 4px 0;
+/* The comment card — looks like a post card */
+.cc-card {
+  display: flex;
+  gap: 13px;
+  background: linear-gradient(145deg, var(--vibe-panel-2) 0%, var(--vibe-panel) 100%);
+  border: 1px solid var(--vibe-line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  transition: border-color .18s, transform .12s;
+  cursor: default;
+  position: relative;
 }
 
-/* Right column: tweet-style content */
-.ct-body {
+/* Cards that have replies are clickable */
+.cc-card.has-replies {
+  cursor: pointer;
+}
+.cc-card.has-replies:hover {
+  border-color: rgba(46,230,198,.35);
+  transform: translateY(-1px);
+}
+.cc-card.expanded {
+  border-color: rgba(46,230,198,.28);
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Avatar column */
+.cc-avatar {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+/* Content column */
+.cc-content {
   flex: 1;
   min-width: 0;
-  padding-bottom: 16px;
-  padding-top: 2px;
 }
 
-/* Header row: name · handle · time · delete */
-.ct-header {
+/* Header row */
+.cc-header {
   display: flex;
   align-items: center;
   gap: 5px;
   flex-wrap: wrap;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
-.ct-name {
+.cc-name {
   font-size: 14px;
   font-weight: 700;
   color: var(--vibe-ink);
@@ -1581,32 +1594,30 @@ button {
   cursor: pointer;
   line-height: 1;
 }
-.ct-name:hover { text-decoration: underline; }
+.cc-name:hover { text-decoration: underline; }
 
-.ct-handle {
-  font-size: 13px;
-  color: var(--vibe-muted);
-}
+.cc-handle { font-size: 13px; color: var(--vibe-muted); }
+.cc-time   { font-size: 12px; color: var(--vibe-faint); }
 
-.ct-time {
-  font-size: 12px;
-  color: var(--vibe-faint);
-}
-
-/* "Replying to @user" — teal label so context is always clear */
-.ct-replying-to {
+/* "Replying to @user" */
+.cc-replying-to {
   font-size: 13px;
   color: var(--vibe-muted);
   margin: 0 0 6px;
 }
-.ct-replying-to span {
+.cc-replying-to button {
+  background: none;
+  border: none;
   color: var(--vibe-teal);
+  font: inherit;
+  font-size: 13px;
+  padding: 0;
   cursor: pointer;
 }
-.ct-replying-to span:hover { text-decoration: underline; }
+.cc-replying-to button:hover { text-decoration: underline; }
 
-/* Comment text — post-like size and spacing */
-.ct-text {
+/* Comment text — full-size, post-like */
+.cc-text {
   font-size: 14.5px;
   line-height: 1.6;
   color: var(--vibe-ink);
@@ -1616,10 +1627,57 @@ button {
 }
 
 /* Action row */
-.ct-actions {
+.cc-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Reply count chip */
+.cc-reply-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--vibe-teal);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(46,230,198,.22);
+  transition: background .15s;
+  user-select: none;
+}
+.cc-reply-count:hover { background: rgba(46,230,198,.1); }
+
+.cc-chevron {
+  font-size: 9px;
+  margin-left: 1px;
+  opacity: .7;
+}
+
+/* Expanded replies — indented with left accent line */
+.cc-replies {
+  margin-top: 3px;
+  margin-left: 22px;
+  padding-left: 14px;
+  border-left: 2px solid rgba(46,230,198,.22);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  padding-bottom: 4px;
+}
+
+/* Nested comment cards are slightly subdued */
+.cc-replies .cc-card {
+  background: linear-gradient(145deg, var(--vibe-panel) 0%, var(--vibe-bg-2) 100%);
+  border-radius: 13px;
+  padding: 12px 14px;
+}
+.cc-replies .cc-replies .cc-card {
+  background: linear-gradient(145deg, var(--vibe-bg-2) 0%, var(--vibe-bg) 100%);
+  border-radius: 11px;
 }
 
 /* ── Legacy classes kept for safety (no longer rendered) ── */
