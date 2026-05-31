@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Camera,
+  Check,
   Flame,
   Heart,
   Home,
@@ -8,6 +9,7 @@ import {
   MessageSquare,
   Music2,
   Pause,
+  Pencil,
   Play,
   Plus,
   Search,
@@ -17,6 +19,7 @@ import {
   User,
   UserPlus,
   Users,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -177,6 +180,17 @@ export default function App() {
     setProfile((prev) => (prev ? { ...prev, photoUrl } : prev));
     const uid = session.user.id;
     const patchUser = (u) => (u.id === uid ? { ...u, photoUrl } : u);
+    setPosts((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
+    setTrending((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
+  }
+
+  async function handleUpdateUsername(newUsername) {
+    await updateProfile(session.token, { username: newUsername });
+    const updatedUser = { ...session.user, username: newUsername };
+    setSession((prev) => ({ ...prev, user: updatedUser }));
+    setProfile((prev) => (prev ? { ...prev, username: newUsername } : prev));
+    const uid = session.user.id;
+    const patchUser = (u) => (u.id === uid ? { ...u, username: newUsername } : u);
     setPosts((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
     setTrending((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
   }
@@ -344,6 +358,7 @@ export default function App() {
             onDelete={handleDeletePost}
             onOpenPost={handleOpenPost}
             onUpdatePhoto={handleUpdatePhoto}
+            onUpdateUsername={handleUpdateUsername}
           />
         ) : view === "search" ? (
           <SearchView
@@ -1068,8 +1083,8 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
 
 function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendingTrack }) {
   const [trackId, setTrackId] = useState("");
-  const [mood, setMood] = useState("Late-night");
-  const [caption, setCaption] = useState("This track is carrying the whole evening.");
+  const [mood, setMood] = useState("");
+  const [caption, setCaption] = useState("");
 
   // When a track is selected from search, pre-fill the selector
   useEffect(() => {
@@ -1193,9 +1208,9 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
               ))}
             </select>
           )}
-          <input value={mood} onChange={(e) => setMood(e.target.value)} aria-label="Mood" placeholder="Mood…" />
+          <input value={mood} onChange={(e) => setMood(e.target.value)} aria-label="Mood" placeholder="Emotions?" />
         </div>
-        <textarea value={caption} onChange={(e) => setCaption(e.target.value)} aria-label="Caption" placeholder="What's this track doing to you right now?" />
+        <textarea value={caption} onChange={(e) => setCaption(e.target.value)} aria-label="Caption" placeholder="What are you thinking?" />
       </div>
 
       {/* Post button — 3rd grid column, aligns to bottom of fields */}
@@ -1523,8 +1538,13 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
   );
 }
 
-function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete, onOpenPost, onUpdatePhoto }) {
+function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete, onOpenPost, onUpdatePhoto, onUpdateUsername }) {
   const photoInputRef = useRef(null);
+  const usernameInputRef = useRef(null);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [savingUsername, setSavingUsername] = useState(false);
 
   function handlePhotoChange(e) {
     const file = e.target.files?.[0];
@@ -1532,6 +1552,46 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
     const reader = new FileReader();
     reader.onload = (evt) => onUpdatePhoto?.(evt.target.result);
     reader.readAsDataURL(file);
+  }
+
+  function validateUsername(u) {
+    if (!u || u.length < 3) return "En az 3 karakter olmalı.";
+    if (u.length > 20) return "En fazla 20 karakter olabilir.";
+    if (!/^[a-zA-Z0-9_]+$/.test(u)) return "Sadece harf, rakam ve _ kullanabilirsin.";
+    return "";
+  }
+
+  function startEditUsername() {
+    setUsernameInput(profile.username);
+    setUsernameError("");
+    setEditingUsername(true);
+    setTimeout(() => usernameInputRef.current?.focus(), 50);
+  }
+
+  function cancelEditUsername() {
+    setEditingUsername(false);
+    setUsernameError("");
+  }
+
+  async function saveUsername() {
+    const trimmed = usernameInput.trim();
+    const err = validateUsername(trimmed);
+    if (err) { setUsernameError(err); return; }
+    if (trimmed === profile.username) { setEditingUsername(false); return; }
+    setSavingUsername(true);
+    try {
+      await onUpdateUsername?.(trimmed);
+      setEditingUsername(false);
+    } catch (e) {
+      setUsernameError(e.message || "Kaydedilemedi.");
+    } finally {
+      setSavingUsername(false);
+    }
+  }
+
+  function handleUsernameKeyDown(e) {
+    if (e.key === "Enter") saveUsername();
+    if (e.key === "Escape") cancelEditUsername();
   }
 
   if (!profile) {
@@ -1555,7 +1615,40 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
           <Avatar user={profile} large />
         )}
         <div className="profile-info">
-          <div className="profile-handle">@{profile.username}</div>
+          {isOwnProfile ? (
+            <div className="username-edit-wrap">
+              {editingUsername ? (
+                <div className="username-edit-row">
+                  <span className="username-at">@</span>
+                  <input
+                    ref={usernameInputRef}
+                    className="username-edit-input"
+                    value={usernameInput}
+                    onChange={(e) => { setUsernameInput(e.target.value.replace(/\s/g, "")); setUsernameError(""); }}
+                    onKeyDown={handleUsernameKeyDown}
+                    maxLength={20}
+                    disabled={savingUsername}
+                  />
+                  <button className="username-icon-btn confirm" onClick={saveUsername} disabled={savingUsername} title="Kaydet">
+                    <Check size={14} />
+                  </button>
+                  <button className="username-icon-btn cancel" onClick={cancelEditUsername} disabled={savingUsername} title="İptal">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="username-display-row">
+                  <span className="profile-handle">@{profile.username}</span>
+                  <button className="username-icon-btn edit" onClick={startEditUsername} title="Username değiştir">
+                    <Pencil size={12} />
+                  </button>
+                </div>
+              )}
+              {usernameError && <div className="username-error">{usernameError}</div>}
+            </div>
+          ) : (
+            <div className="profile-handle">@{profile.username}</div>
+          )}
           <div className="profile-name">{profile.displayName}</div>
           <p>{profile.bio}</p>
           <div className="genre-row">

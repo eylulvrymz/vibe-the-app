@@ -867,6 +867,69 @@ button {
   margin-bottom: 4px;
 }
 
+/* ── Username inline edit ── */
+.username-edit-wrap { margin-bottom: 4px; }
+.username-display-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.username-edit-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.username-at {
+  font-family: var(--vibe-font-mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+  color: var(--vibe-teal);
+  text-transform: uppercase;
+}
+.username-edit-input {
+  font-family: var(--vibe-font-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  color: var(--vibe-teal);
+  text-transform: uppercase;
+  background: rgba(46,230,198,.08);
+  border: 1px solid rgba(46,230,198,.4);
+  border-radius: 6px;
+  padding: 3px 8px;
+  outline: none;
+  width: 130px;
+  transition: border-color .2s;
+}
+.username-edit-input:focus { border-color: var(--vibe-teal); }
+.username-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid transparent !important;
+  background: transparent;
+  cursor: pointer;
+  transition: background .18s, border-color .18s, opacity .18s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.username-icon-btn:disabled { opacity: .45; cursor: default; }
+.username-icon-btn.edit { color: var(--vibe-teal); border-color: rgba(46,230,198,.4) !important; background: rgba(46,230,198,.1); }
+.username-icon-btn.edit:hover { background: rgba(46,230,198,.22); border-color: rgba(46,230,198,.7) !important; }
+.username-icon-btn.confirm { color: #2ee6c6; border-color: rgba(46,230,198,.3); }
+.username-icon-btn.confirm:hover { background: rgba(46,230,198,.15); }
+.username-icon-btn.cancel { color: var(--vibe-muted); border-color: rgba(255,255,255,.1); }
+.username-icon-btn.cancel:hover { background: rgba(255,255,255,.06); }
+.username-error {
+  font-size: 11px;
+  color: #ff6b6b;
+  margin-top: 4px;
+  font-family: var(--vibe-font-mono);
+}
+
 .profile-name {
   font-size: 24px;
   font-weight: 700;

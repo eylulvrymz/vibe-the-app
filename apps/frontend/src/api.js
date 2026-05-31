@@ -218,6 +218,15 @@ export async function updateProfile(token, updates) {
       state.posts = state.posts.map((p) =>
         p.user && p.user.id === current.id ? { ...p, user: { ...p.user, ...updates } } : p
       );
+      // if username changed, migrate credentials key so login still works
+      if (updates.username && updates.username.toLowerCase() !== current.username.toLowerCase()) {
+        const oldKey = current.username.toLowerCase();
+        const newKey = updates.username.toLowerCase();
+        if (state.credentials[oldKey] !== undefined) {
+          state.credentials[newKey] = state.credentials[oldKey];
+          delete state.credentials[oldKey];
+        }
+      }
       saveLocalState(state);
       return { user: state.users[idx], offline: true };
     }
