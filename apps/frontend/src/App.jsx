@@ -1092,6 +1092,7 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
   const [trackId, setTrackId] = useState("");
   const [mood, setMood] = useState("");
   const [caption, setCaption] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   // When a track is selected from search, pre-fill the selector
   useEffect(() => {
@@ -1147,6 +1148,12 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
 
   async function submit(event) {
     event.preventDefault();
+    const hasTrack = spotifyTrack || trackId;
+    if (!hasTrack && !caption.trim()) {
+      setSubmitError("You should write something!");
+      return;
+    }
+    setSubmitError("");
     const payload = spotifyTrack
       ? {
           spotifyTrackId: spotifyTrack.spotifyId,
@@ -1158,9 +1165,13 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
           mood,
           caption,
         }
-      : { trackId: localTrack?.id || 1, mood, caption };
+      : trackId
+        ? { trackId: localTrack?.id, mood, caption }
+        : { mood, caption };
     await onCreate(payload);
     setCaption("");
+    setMood("");
+    setTrackId("");
     setSpotifyTrack(null);
     setSpotifyResults([]);
     setSpotifyQuery("");
@@ -1218,7 +1229,8 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
           )}
           <input value={mood} onChange={(e) => setMood(e.target.value)} aria-label="Mood" placeholder="Emotions?" />
         </div>
-        <textarea value={caption} onChange={(e) => setCaption(e.target.value)} aria-label="Caption" placeholder="What are you thinking?" />
+        <textarea value={caption} onChange={(e) => { setCaption(e.target.value); if (submitError) setSubmitError(""); }} aria-label="Caption" placeholder="What are you thinking?" />
+        {submitError && <div className="composer-error">{submitError}</div>}
       </div>
 
       {/* Post button — 3rd grid column, aligns to bottom of fields */}
@@ -1230,7 +1242,7 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
 }
 
 function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSpotifyId, token, currentUser, onDelete }) {
-  const spotifyId = post.track.spotifyId;
+  const spotifyId = post.track?.spotifyId;
   const [showEmbed, setShowEmbed] = useState(false);
   const isPostOwner = currentUser && post.user.id === currentUser.id;
 
@@ -1244,7 +1256,11 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
 
       {/* Album art */}
       <div className="post-art">
-        <img src={post.track.coverUrl} alt={`${post.track.title} cover`} />
+        {post.track ? (
+          <img src={post.track.coverUrl} alt={`${post.track.title} cover`} />
+        ) : (
+          <div className="post-art-empty"><Music2 size={28} /></div>
+        )}
       </div>
 
       <div className="post-body">
@@ -1264,8 +1280,12 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
         </div>
 
         {/* Track info */}
-        <div className="post-track">{post.track.title}</div>
-        <div className="post-album">{post.track.artist} — {post.track.album}</div>
+        {post.track && (
+          <>
+            <div className="post-track">{post.track.title}</div>
+            <div className="post-album">{post.track.artist} — {post.track.album}</div>
+          </>
+        )}
         <p className="post-caption">{post.caption}</p>
 
         {/* Spotify embed */}

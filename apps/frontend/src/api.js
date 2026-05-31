@@ -294,8 +294,10 @@ export async function createPost(token, payload) {
         };
         state.tracks.push(track);
       }
+    } else if (payload.trackId) {
+      track = state.tracks.find((item) => item.id === Number(payload.trackId)) || null;
     } else {
-      track = state.tracks.find((item) => item.id === Number(payload.trackId)) || state.tracks[0];
+      track = null;
     }
     const post = {
       id: Math.max(...state.posts.map((item) => item.id)) + 1,
