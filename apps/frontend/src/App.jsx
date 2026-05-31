@@ -80,6 +80,7 @@ export default function App() {
   const [deviceId, setDeviceId] = useState(null);
   const [playingTrackId, setPlayingTrackId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const skipNextRefreshRef = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -136,6 +137,10 @@ export default function App() {
     }
     const profileId = selectedProfileId || session.user.id;
     localStorage.setItem("vibe-session", JSON.stringify(session));
+    if (skipNextRefreshRef.current) {
+      skipNextRefreshRef.current = false;
+      return;
+    }
     refreshAll(session.token, session.user.id, profileId);
   }, [session, selectedProfileId]);
 
@@ -176,6 +181,7 @@ export default function App() {
   async function handleUpdatePhoto(photoUrl) {
     await updateProfile(session.token, { photoUrl });
     const updatedUser = { ...session.user, photoUrl };
+    skipNextRefreshRef.current = true;
     setSession((prev) => ({ ...prev, user: updatedUser }));
     setProfile((prev) => (prev ? { ...prev, photoUrl } : prev));
     const uid = session.user.id;
@@ -187,6 +193,7 @@ export default function App() {
   async function handleUpdateUsername(newUsername) {
     await updateProfile(session.token, { username: newUsername });
     const updatedUser = { ...session.user, username: newUsername };
+    skipNextRefreshRef.current = true;
     setSession((prev) => ({ ...prev, user: updatedUser }));
     setProfile((prev) => (prev ? { ...prev, username: newUsername } : prev));
     const uid = session.user.id;
