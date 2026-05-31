@@ -108,7 +108,8 @@ public final class VibeServer {
                     body.get("spotifyPreviewUrl")
                 );
             } else {
-                trackId = parseLong(body.get("trackId"), 1L);
+                // No track attached — store the post with a null track (trackId 0 = none).
+                trackId = parseLong(body.get("trackId"), 0L);
             }
             Map<String, Object> post = database.createPost(userId, trackId, body.get("mood"), body.get("caption"));
             sendJson(exchange, 201, Json.object("post", post));
@@ -134,6 +135,24 @@ public final class VibeServer {
         if ("GET".equals(method) && "/api/trending".equals(path)) {
             long userId = optionalUser(exchange);
             sendJson(exchange, 200, Json.object("posts", database.trending(userId)));
+            return;
+        }
+
+        if (("PATCH".equals(method) || "PUT".equals(method)) && "/api/users/me".equals(path)) {
+            long userId = requireUser(exchange);
+            Map<String, String> body = Json.parseObject(readBody(exchange));
+            try {
+                Map<String, Object> user = database.updateUser(
+                    userId,
+                    body.get("username"),
+                    body.get("displayName"),
+                    body.get("bio"),
+                    body.get("photoUrl")
+                );
+                sendJson(exchange, 200, Json.object("user", user));
+            } catch (SQLException exception) {
+                throw new ApiException(409, "Username is already taken");
+            }
             return;
         }
 
@@ -348,7 +367,7 @@ public final class VibeServer {
         Headers headers = exchange.getResponseHeaders();
         headers.add("Access-Control-Allow-Origin", "*");
         headers.add("Access-Control-Allow-Headers", "Authorization, Content-Type");
-        headers.add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+        headers.add("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
     }
 
     private static void sendJson(HttpExchange exchange, int status, Object payload) throws IOException {

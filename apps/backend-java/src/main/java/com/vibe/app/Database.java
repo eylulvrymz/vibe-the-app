@@ -83,7 +83,11 @@ public final class Database {
             Statement.RETURN_GENERATED_KEYS
         );
         statement.setLong(1, userId);
-        statement.setLong(2, trackId);
+        if (trackId > 0) {
+            statement.setLong(2, trackId);
+        } else {
+            statement.setNull(2, java.sql.Types.INTEGER);
+        }
         statement.setString(3, safe(mood, "Fresh"));
         statement.setString(4, safe(caption, ""));
         statement.executeUpdate();
@@ -390,7 +394,7 @@ public final class Database {
             "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, t.spotify_id AS track_spotify_id, t.preview_url AS track_preview_url, " +
             "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count, " +
             "(SELECT COUNT(*) FROM likes lm WHERE lm.post_id = p.id AND lm.user_id = ?) AS liked_by_me " +
-            "FROM posts p JOIN users u ON u.id = p.user_id JOIN tracks t ON t.id = p.track_id " +
+            "FROM posts p JOIN users u ON u.id = p.user_id LEFT JOIN tracks t ON t.id = p.track_id " +
             suffix + " LIMIT ?";
         PreparedStatement statement = connection.prepareStatement(sql);
         statement.setLong(1, currentUserId);
@@ -410,7 +414,7 @@ public final class Database {
             "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, t.spotify_id AS track_spotify_id, t.preview_url AS track_preview_url, " +
             "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count, " +
             "(SELECT COUNT(*) FROM likes lm WHERE lm.post_id = p.id AND lm.user_id = ?) AS liked_by_me " +
-            "FROM posts p JOIN users u ON u.id = p.user_id JOIN tracks t ON t.id = p.track_id WHERE p.id = ?";
+            "FROM posts p JOIN users u ON u.id = p.user_id LEFT JOIN tracks t ON t.id = p.track_id WHERE p.id = ?";
         PreparedStatement statement = connection.prepareStatement(sql);
         statement.setLong(1, currentUserId);
         statement.setLong(2, postId);
@@ -436,17 +440,22 @@ public final class Database {
         user.put("favoriteGenres", splitGenres(rs.getString("favorite_genres")));
         post.put("user", user);
 
-        Map<String, Object> track = new LinkedHashMap<String, Object>();
-        track.put("id", rs.getLong("track_id"));
-        track.put("title", rs.getString("title"));
-        track.put("artist", rs.getString("artist"));
-        track.put("album", rs.getString("album"));
-        track.put("genre", rs.getString("genre"));
-        track.put("mood", rs.getString("track_mood"));
-        track.put("coverUrl", rs.getString("cover_url"));
-        track.put("spotifyId", rs.getString("track_spotify_id"));
-        track.put("previewUrl", rs.getString("track_preview_url"));
-        post.put("track", track);
+        long trackId = rs.getLong("track_id");
+        if (rs.wasNull()) {
+            post.put("track", null);
+        } else {
+            Map<String, Object> track = new LinkedHashMap<String, Object>();
+            track.put("id", trackId);
+            track.put("title", rs.getString("title"));
+            track.put("artist", rs.getString("artist"));
+            track.put("album", rs.getString("album"));
+            track.put("genre", rs.getString("genre"));
+            track.put("mood", rs.getString("track_mood"));
+            track.put("coverUrl", rs.getString("cover_url"));
+            track.put("spotifyId", rs.getString("track_spotify_id"));
+            track.put("previewUrl", rs.getString("track_preview_url"));
+            post.put("track", track);
+        }
         post.put("commentCount", scalar("SELECT COUNT(*) FROM comments WHERE post_id = ?", rs.getLong("id")));
 
         return post;
@@ -469,7 +478,45 @@ public final class Database {
         user.put("avatarKey", rs.getString("avatar_key"));
         user.put("bio", rs.getString("bio"));
         user.put("favoriteGenres", splitGenres(rs.getString("favorite_genres")));
+        try {
+            String photo = rs.getString("photo_url");
+            user.put("photoUrl", photo == null ? "" : photo);
+        } catch (SQLException ignored) {
+            // query did not select photo_url
+        }
         return user;
+    }
+
+    public synchronized Map<String, Object> updateUser(long userId, String username, String displayName, String bio, String photoUrl) throws SQLException {
+        List<String> sets = new ArrayList<String>();
+        List<String> values = new ArrayList<String>();
+        if (username != null && !username.trim().isEmpty()) {
+            sets.add("username = ?");
+            values.add(username.trim().toLowerCase());
+        }
+        if (displayName != null && !displayName.trim().isEmpty()) {
+            sets.add("display_name = ?");
+            values.add(displayName.trim());
+        }
+        if (bio != null) {
+            sets.add("bio = ?");
+            values.add(bio);
+        }
+        if (photoUrl != null) {
+            sets.add("photo_url = ?");
+            values.add(photoUrl);
+        }
+        if (!sets.isEmpty()) {
+            String sql = "UPDATE users SET " + String.join(", ", sets) + " WHERE id = ?";
+            PreparedStatement statement = connection.prepareStatement(sql);
+            int index = 1;
+            for (String value : values) {
+                statement.setString(index++, value);
+            }
+            statement.setLong(index, userId);
+            statement.executeUpdate();
+        }
+        return findUserById(userId);
     }
 
     private Map<String, Object> trackFromResult(ResultSet rs) throws SQLException {
@@ -526,7 +573,7 @@ public final class Database {
         List<String> statements = Arrays.asList(
             "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, avatar_key TEXT NOT NULL, bio TEXT NOT NULL, favorite_genres TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
             "CREATE TABLE IF NOT EXISTS tracks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, artist TEXT NOT NULL, album TEXT NOT NULL, genre TEXT NOT NULL, mood TEXT NOT NULL, cover_url TEXT NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, track_id INTEGER NOT NULL REFERENCES tracks(id), mood TEXT NOT NULL, caption TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+            "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, track_id INTEGER REFERENCES tracks(id), mood TEXT NOT NULL, caption TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
             "CREATE TABLE IF NOT EXISTS likes (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, post_id))",
             "CREATE TABLE IF NOT EXISTS follows (follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (follower_id, following_id), CHECK (follower_id <> following_id))",
             "CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
@@ -542,6 +589,27 @@ public final class Database {
         try { connection.createStatement().execute("ALTER TABLE tracks ADD COLUMN spotify_id TEXT"); } catch (SQLException ignored) {}
         try { connection.createStatement().execute("ALTER TABLE tracks ADD COLUMN preview_url TEXT"); } catch (SQLException ignored) {}
         try { connection.createStatement().execute("ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)"); } catch (SQLException ignored) {}
+        try { connection.createStatement().execute("ALTER TABLE users ADD COLUMN photo_url TEXT"); } catch (SQLException ignored) {}
+        // Migration: older schema declared posts.track_id NOT NULL, which blocks track-less posts.
+        // Rebuild the table with a nullable track_id when needed.
+        try {
+            boolean trackNotNull = false;
+            ResultSet info = connection.createStatement().executeQuery("PRAGMA table_info(posts)");
+            while (info.next()) {
+                if ("track_id".equals(info.getString("name")) && info.getInt("notnull") == 1) {
+                    trackNotNull = true;
+                }
+            }
+            if (trackNotNull) {
+                Statement migrate = connection.createStatement();
+                migrate.execute("PRAGMA foreign_keys=OFF");
+                migrate.execute("CREATE TABLE posts_new (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, track_id INTEGER REFERENCES tracks(id), mood TEXT NOT NULL, caption TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+                migrate.execute("INSERT INTO posts_new (id, user_id, track_id, mood, caption, created_at) SELECT id, user_id, track_id, mood, caption, created_at FROM posts");
+                migrate.execute("DROP TABLE posts");
+                migrate.execute("ALTER TABLE posts_new RENAME TO posts");
+                migrate.execute("PRAGMA foreign_keys=ON");
+            }
+        } catch (SQLException ignored) {}
         // Remove fake seed tracks (no Spotify ID) and their posts
         connection.createStatement().execute("DELETE FROM posts WHERE track_id IN (SELECT id FROM tracks WHERE spotify_id IS NULL OR spotify_id = '')");
         connection.createStatement().execute("DELETE FROM tracks WHERE spotify_id IS NULL OR spotify_id = ''");

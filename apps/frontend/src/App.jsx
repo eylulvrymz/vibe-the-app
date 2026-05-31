@@ -164,11 +164,11 @@ export default function App() {
       getProfile(token, profileId),
       getSuggestions(token),
     ]);
-    setPosts(feedData.posts);
-    setTrending(trendingData.posts);
-    setTracks(trackData.tracks);
-    setProfile(profileData.user);
-    setSuggestions(suggestionData.users);
+    setPosts(feedData.posts || []);
+    setTrending(trendingData.posts || []);
+    setTracks(trackData.tracks || []);
+    setProfile(profileData.user || null);
+    setSuggestions(suggestionData.users || []);
     setGlobalLoading(false);
   }
 
@@ -1126,6 +1126,7 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
   const [spotifyTrack, setSpotifyTrack] = useState(null);
   const [searching, setSearching] = useState(false);
 
+  const searchTimerRef = useRef(null);
   const localTrack = useMemo(
     () => tracks.find((t) => t.id === Number(trackId)) || tracks[0],
     [tracks, trackId]
@@ -1137,8 +1138,6 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
   const coverUrl = hasExplicitSelection ? (activeTrack?.coverUrl || "") : "";
 
   if (!activeTrack && !spotifyToken) return null;
-
-  const searchTimerRef = useRef(null);
 
   async function doSpotifySearch(q) {
     const query = (q ?? spotifyQuery).trim();
