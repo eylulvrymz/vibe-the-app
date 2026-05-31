@@ -1251,17 +1251,15 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
   }
 
   return (
-    <article className="post-card" onClick={handleCardClick}>
+    <article className={`post-card${post.track ? "" : " no-track"}`} onClick={handleCardClick}>
       {rank && <div className="rank-badge">#{rank}</div>}
 
-      {/* Album art */}
-      <div className="post-art">
-        {post.track ? (
+      {/* Album art — only when track exists */}
+      {post.track && (
+        <div className="post-art">
           <img src={post.track.coverUrl} alt={`${post.track.title} cover`} />
-        ) : (
-          <div className="post-art-empty"><Music2 size={28} /></div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="post-body">
         {/* User meta */}
@@ -1328,7 +1326,7 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
             {post.commentCount || 0}
           </button>
 
-          {post.track.genre && <span className="chip src">{post.track.genre}</span>}
+          {post.track?.genre && <span className="chip src">{post.track.genre}</span>}
           <span className="chip dt">{formatDate(post.createdAt)}</span>
 
           {isPostOwner && onDelete && (
@@ -1748,7 +1746,7 @@ function SearchView({ results, posts, onFollow, onUnfollow, onNavigate, onPostWi
   const matchedPosts = useMemo(() => {
     if (!results.tracks.length || !posts.length) return [];
     const titles = new Set(results.tracks.map((t) => t.title.toLowerCase()));
-    return posts.filter((p) => titles.has(p.track.title.toLowerCase()));
+    return posts.filter((p) => p.track && titles.has(p.track.title.toLowerCase()));
   }, [results.tracks, posts]);
 
   return (
@@ -1841,6 +1839,7 @@ function Panel({ title, icon: Icon, children }) {
 }
 
 function MiniTrack({ post, rank }) {
+  if (!post.track) return null;
   return (
     <div className="mini-track">
       <span>{rank}</span>

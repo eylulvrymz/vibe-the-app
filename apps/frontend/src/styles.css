@@ -371,15 +371,6 @@ button {
   font-family: var(--vibe-font-mono);
   letter-spacing: .04em;
 }
-.post-art-empty {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  background: var(--vibe-panel-2);
-  border-radius: inherit;
-  color: var(--vibe-faint);
-}
 
 .composer textarea {
   min-height: 66px;
@@ -424,6 +415,7 @@ button {
   transition: border-color .22s, transform .18s;
 }
 .post-card:hover { border-color: var(--vibe-line-2); transform: translateY(-2px); }
+.post-card.no-track { grid-template-columns: 1fr; }
 
 .rank-badge {
   position: absolute;
