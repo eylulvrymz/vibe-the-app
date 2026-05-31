@@ -205,12 +205,14 @@ export async function register(displayName, username, password, genres, photoUrl
   }
 }
 
-export async function updateProfile(token, updates) {
+export async function updateProfile(token, updates, currentUser) {
   try {
     return await request("/users/me", { method: "PATCH", token, body: updates });
   } catch {
     const state = loadLocalState();
-    const current = userFromToken(token, state);
+    const current = currentUser
+      ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
+      : userFromToken(token, state);
     const idx = state.users.findIndex((u) => u.id === current.id);
     if (idx >= 0) {
       state.users[idx] = { ...state.users[idx], ...updates };
@@ -319,12 +321,14 @@ export async function createPost(token, payload, currentUser) {
   }
 }
 
-export async function likePost(token, postId) {
+export async function likePost(token, postId, currentUser) {
   try {
     return await request(`/posts/${postId}/like`, { method: "POST", token });
   } catch {
     const state = loadLocalState();
-    const current = userFromToken(token, state);
+    const current = currentUser
+      ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
+      : userFromToken(token, state);
     const numericPostId = Number(postId);
     const existingIndex = state.likes.findIndex(
       ([likerId, likedPostId]) => likerId === current.id && likedPostId === numericPostId
@@ -391,12 +395,14 @@ export async function deleteComment(token, postId, commentId) {
   }
 }
 
-export async function followUser(token, userId) {
+export async function followUser(token, userId, currentUser) {
   try {
     return await request(`/users/${userId}/follow`, { method: "POST", token });
   } catch {
     const state = loadLocalState();
-    const current = userFromToken(token, state);
+    const current = currentUser
+      ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
+      : userFromToken(token, state);
     if (!state.follows.some(([from, to]) => from === current.id && to === userId)) {
       state.follows.push([current.id, userId]);
       saveLocalState(state);
@@ -405,12 +411,14 @@ export async function followUser(token, userId) {
   }
 }
 
-export async function unfollowUser(token, userId) {
+export async function unfollowUser(token, userId, currentUser) {
   try {
     return await request(`/users/${userId}/follow`, { method: "DELETE", token });
   } catch {
     const state = loadLocalState();
-    const current = userFromToken(token, state);
+    const current = currentUser
+      ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
+      : userFromToken(token, state);
     state.follows = state.follows.filter(([from, to]) => !(from === current.id && to === userId));
     saveLocalState(state);
     return { ok: true, offline: true };

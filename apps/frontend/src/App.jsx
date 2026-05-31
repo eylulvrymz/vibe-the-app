@@ -179,7 +179,7 @@ export default function App() {
   }
 
   async function handleUpdatePhoto(photoUrl) {
-    await updateProfile(session.token, { photoUrl });
+    await updateProfile(session.token, { photoUrl }, session.user);
     const updatedUser = { ...session.user, photoUrl };
     skipNextRefreshRef.current = true;
     setSession((prev) => ({ ...prev, user: updatedUser }));
@@ -191,7 +191,7 @@ export default function App() {
   }
 
   async function handleUpdateUsername(newUsername) {
-    await updateProfile(session.token, { username: newUsername });
+    await updateProfile(session.token, { username: newUsername }, session.user);
     const updatedUser = { ...session.user, username: newUsername };
     skipNextRefreshRef.current = true;
     setSession((prev) => ({ ...prev, user: updatedUser }));
@@ -214,7 +214,7 @@ export default function App() {
   }
 
   async function handleLike(postId) {
-    const payload = await likePost(session.token, postId);
+    const payload = await likePost(session.token, postId, session.user);
     if (!payload.post) {
       return;
     }
@@ -257,7 +257,7 @@ export default function App() {
   }
 
   async function handleFollow(userId) {
-    await followUser(session.token, userId);
+    await followUser(session.token, userId, session.user);
     const [suggestionData, profileData] = await Promise.all([
       getSuggestions(session.token),
       getProfile(session.token, selectedProfileId || session.user.id),
@@ -267,7 +267,7 @@ export default function App() {
   }
 
   async function handleUnfollow(userId) {
-    await unfollowUser(session.token, userId);
+    await unfollowUser(session.token, userId, session.user);
     const [suggestionData, profileData] = await Promise.all([
       getSuggestions(session.token),
       getProfile(session.token, selectedProfileId || session.user.id),
