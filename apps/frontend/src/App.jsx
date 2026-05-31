@@ -320,6 +320,7 @@ export default function App() {
   function logout() {
     localStorage.removeItem("vibe-session");
     setSession(null);
+    setSelectedProfileId(null);
     setProfile(null);
     setPosts([]);
     setTrending([]);
