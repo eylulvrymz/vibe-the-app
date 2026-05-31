@@ -248,6 +248,33 @@ button {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Full-page global loader (login / session init) ── */
+.full-page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: var(--bg-base, #060d0b);
+}
+.full-page-loader-ring {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 4px solid rgba(46,230,198,.15);
+  border-top-color: var(--vibe-teal);
+  animation: spin .7s linear infinite;
+}
+.full-page-loader-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  color: rgba(255,255,255,.4);
+}
+
 .status-strip {
   display: inline-flex;
   margin-bottom: 18px;

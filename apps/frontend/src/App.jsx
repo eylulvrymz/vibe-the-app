@@ -59,6 +59,16 @@ function VibeMark({ size = 32, color = "currentColor" }) {
   );
 }
 
+function FullPageLoader() {
+  return (
+    <div className="full-page-loader">
+      <VibeMark size={40} color="var(--vibe-teal)" />
+      <div className="full-page-loader-ring" />
+      <span className="full-page-loader-label">Loading…</span>
+    </div>
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState(savedSession);
   const [showLanding, setShowLanding] = useState(!savedSession);
@@ -81,6 +91,7 @@ export default function App() {
   const [playingTrackId, setPlayingTrackId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(!!savedSession);
   const skipNextRefreshRef = useRef(false);
 
   useEffect(() => {
@@ -158,6 +169,7 @@ export default function App() {
     setTracks(trackData.tracks);
     setProfile(profileData.user);
     setSuggestions(suggestionData.users);
+    setGlobalLoading(false);
   }
 
   async function refreshProfile(profileId = selectedProfileId || session.user.id) {
@@ -167,6 +179,7 @@ export default function App() {
 
   async function handleLogin(username, password) {
     const payload = await login(username, password);
+    setGlobalLoading(true);
     setSelectedProfileId(payload.user.id);
     setSession({ token: payload.token, user: payload.user, offline: payload.offline });
     setStatus(payload.offline ? "Local demo mode" : "Connected to Java API");
@@ -174,6 +187,7 @@ export default function App() {
 
   async function handleRegister(form) {
     const payload = await register(form.displayName, form.username, form.password, form.genres, form.photoUrl);
+    setGlobalLoading(true);
     setSelectedProfileId(payload.user.id);
     setSession({ token: payload.token, user: payload.user, offline: payload.offline });
     setStatus(payload.offline ? "Local demo mode" : "Connected to Java API");
@@ -308,6 +322,10 @@ export default function App() {
     setPlayingTrackId(null);
     setIsPlaying(false);
     setShowLanding(true);
+  }
+
+  if (globalLoading) {
+    return <FullPageLoader />;
   }
 
   if (!session) {
