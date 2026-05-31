@@ -222,15 +222,11 @@ export default function App() {
 
   async function handleCreatePost(payload) {
     const created = await createPost(session.token, payload, session.user);
-    // Optimistic add so the post appears instantly
     setPosts((current) => [created.post, ...current]);
-    // Then sync everything from localStorage (source of truth after createPost saves)
-    const [feedData, trend, viewedProfile] = await Promise.all([
-      getFeed(session.token),
+    const [trend, viewedProfile] = await Promise.all([
       getTrending(session.token),
       getProfile(session.token, selectedProfileId || session.user.id),
     ]);
-    setPosts(feedData.posts);
     setTrending(trend.posts);
     setProfile(viewedProfile.user);
   }
@@ -298,11 +294,14 @@ export default function App() {
     setProfile(profileData.user);
   }
 
-  function handleOpenPost(postId) {
+  async function handleOpenPost(postId) {
     setPageLoading(true);
     setPrevView(view);
     setSelectedPostId(postId);
     setView("post");
+    // Fetch the post so we know when data is ready, then hide the page loader
+    await getPost(session.token, postId);
+    setPageLoading(false);
   }
 
   async function openProfile(userId) {
@@ -381,7 +380,6 @@ export default function App() {
             onNavigate={openProfile}
             activeSpotifyId={activeSpotifyId}
             onDelete={handleDeletePost}
-            onLoaded={() => setPageLoading(false)}
           />
         ) : view === "profile" ? (
           <ProfileView
