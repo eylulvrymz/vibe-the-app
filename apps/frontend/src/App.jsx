@@ -1209,7 +1209,8 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
               <button type="button" onClick={() => setSpotifyTrack(null)} title="Remove">×</button>
             </div>
           ) : (
-            <select value={trackId || (localTrack?.id ?? "")} onChange={(e) => setTrackId(e.target.value)}>
+            <select value={trackId} onChange={(e) => setTrackId(e.target.value)}>
+              <option value="" disabled>What's next?</option>
               {tracks.map((t) => (
                 <option key={t.id} value={t.id}>{t.title} — {t.artist}</option>
               ))}

@@ -354,7 +354,15 @@ button {
   padding: 0 12px;
 }
 
-.composer select { cursor: pointer; }
+.composer select {
+  cursor: pointer;
+  background: #0e1117;
+  color-scheme: dark;
+}
+.composer select option {
+  background: #0e1117;
+  color: var(--vibe-ink);
+}
 .composer input:focus, .composer textarea:focus, .composer select:focus { border-color: var(--vibe-teal); }
 .composer input::placeholder, .composer textarea::placeholder { color: var(--vibe-faint); }
 
