@@ -274,12 +274,15 @@ export async function getTracks() {
   }
 }
 
-export async function createPost(token, payload) {
+export async function createPost(token, payload, currentUser) {
   try {
     return await request("/posts", { method: "POST", token, body: payload });
   } catch {
     const state = loadLocalState();
-    const user = userFromToken(token, state);
+    // prefer the explicitly passed user (avoids token-fallback to wrong mock user)
+    const user = currentUser
+      ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
+      : userFromToken(token, state);
     let track;
     if (payload.spotifyTrackId) {
       track = state.tracks.find((t) => t.spotifyId === payload.spotifyTrackId);

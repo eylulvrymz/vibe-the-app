@@ -203,7 +203,7 @@ export default function App() {
   }
 
   async function handleCreatePost(payload) {
-    const created = await createPost(session.token, payload);
+    const created = await createPost(session.token, payload, session.user);
     setPosts((current) => [created.post, ...current]);
     const [trend, viewedProfile] = await Promise.all([
       getTrending(session.token),
