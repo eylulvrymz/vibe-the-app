@@ -208,9 +208,15 @@ export default function App() {
   async function handleUpdateUsername(newUsername) {
     await updateProfile(session.token, { username: newUsername }, session.user);
     const updatedUser = { ...session.user, username: newUsername };
+    // Persist session immediately — don't wait for useEffect which may be skipped
+    try {
+      localStorage.setItem("vibe-session", JSON.stringify({ ...session, user: updatedUser }));
+    } catch {}
     skipNextRefreshRef.current = true;
     setSession((prev) => ({ ...prev, user: updatedUser }));
-    setProfile((prev) => (prev ? { ...prev, username: newUsername } : prev));
+    // Pull the freshly-saved profile from localStorage so UI is in sync
+    const refreshed = await getProfile(session.token, session.user.id);
+    setProfile(refreshed.user);
     const uid = session.user.id;
     const patchUser = (u) => (u.id === uid ? { ...u, username: newUsername } : u);
     setPosts((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
@@ -219,11 +225,15 @@ export default function App() {
 
   async function handleCreatePost(payload) {
     const created = await createPost(session.token, payload, session.user);
+    // Optimistic add so the post appears instantly
     setPosts((current) => [created.post, ...current]);
-    const [trend, viewedProfile] = await Promise.all([
+    // Then sync everything from localStorage (source of truth after createPost saves)
+    const [feedData, trend, viewedProfile] = await Promise.all([
+      getFeed(session.token),
       getTrending(session.token),
       getProfile(session.token, selectedProfileId || session.user.id),
     ]);
+    setPosts(feedData.posts);
     setTrending(trend.posts);
     setProfile(viewedProfile.user);
   }
