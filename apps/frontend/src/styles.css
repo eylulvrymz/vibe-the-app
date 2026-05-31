@@ -1529,6 +1529,39 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
+/* ── Nested reply thread ── */
+.tweet-reply-card.nested {
+  border-bottom: none;
+  padding: 10px 0;
+}
+.tweet-reply-card.nested:last-child { padding-bottom: 0; }
+
+.comment-replies {
+  margin-top: 4px;
+  margin-left: 44px;          /* align with body text past the avatar */
+  padding-left: 16px;
+  border-left: 2px solid var(--vibe-line);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Expand / collapse toggle button */
+.comment-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vibe-teal);
+  background: transparent;
+  border: none;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.comment-expand-btn:hover { background: rgba(46,230,198,.1); }
+
 .tweet-reply-main {
   display: flex;
   gap: 12px;

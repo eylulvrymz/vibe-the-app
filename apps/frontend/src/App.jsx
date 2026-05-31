@@ -1,6 +1,8 @@
 import {
   ArrowLeft,
   Camera,
+  ChevronDown,
+  ChevronUp,
   Flame,
   Heart,
   Home,
@@ -1306,14 +1308,16 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
 function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate, activeSpotifyId, onDelete }) {
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
-  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null); // comment id being replied to
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [expandedComments, setExpandedComments] = useState(new Set());
 
   useEffect(() => {
     setPost(null);
     setComments([]);
+    setExpandedComments(new Set());
     Promise.all([getPost(token, postId), getComments(token, postId)]).then(([pd, cd]) => {
       setPost(pd.post);
       setComments(cd.comments || []);
@@ -1322,11 +1326,35 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
 
   const isPostOwner = currentUser && post && Number(post.user.id) === Number(currentUser.id);
 
-  const getParentUsername = (c) => {
-    if (!c.parentId) return null;
-    const p = comments.find((x) => Number(x.id) === Number(c.parentId));
-    return p ? p.user.username : null;
-  };
+  // Walk up the parent chain to find the root comment id
+  function findRootId(commentId, allComments) {
+    const c = allComments.find((x) => Number(x.id) === Number(commentId));
+    if (!c || !c.parentId) return Number(commentId);
+    return findRootId(c.parentId, allComments);
+  }
+
+  // BFS: collect all descendants of a root comment
+  function getDescendants(rootId, allComments) {
+    const result = [];
+    const queue = [Number(rootId)];
+    while (queue.length > 0) {
+      const cur = queue.shift();
+      const children = allComments.filter((c) => Number(c.parentId) === cur);
+      for (const child of children) {
+        result.push(child);
+        queue.push(Number(child.id));
+      }
+    }
+    return result;
+  }
+
+  function toggleExpand(commentId) {
+    setExpandedComments((prev) => {
+      const next = new Set(prev);
+      next.has(commentId) ? next.delete(commentId) : next.add(commentId);
+      return next;
+    });
+  }
 
   async function submitReply(parentId) {
     if (!replyText.trim()) return;
@@ -1334,8 +1362,17 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
     setError("");
     try {
       const data = await addComment(token, postId, replyText.trim(), currentUser, parentId || null);
-      setComments((prev) => [...prev, data.comment]);
-      setPost((p) => p ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p);
+      const newComment = data.comment;
+      setComments((prev) => {
+        const updated = [...prev, newComment];
+        // Auto-expand the thread this reply belongs to
+        if (parentId) {
+          const rootId = findRootId(parentId, updated);
+          setExpandedComments((e) => new Set([...e, rootId]));
+        }
+        return updated;
+      });
+      setPost((p) => (p ? { ...p, commentCount: (p.commentCount || 0) + 1 } : p));
       setReplyText("");
       setReplyingTo(null);
     } catch {
@@ -1347,14 +1384,97 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
 
   async function handleLikeComment(commentId) {
     const data = await likeComment(token, postId, commentId);
-    setComments((prev) => prev.map((c) => c.id === commentId ? { ...c, ...data } : c));
+    setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, ...data } : c)));
   }
 
   async function handleDeleteComment(commentId) {
     await deleteComment(token, postId, commentId);
     setComments((prev) => prev.filter((c) => c.id !== commentId));
-    setPost((p) => p ? { ...p, commentCount: Math.max(0, (p.commentCount || 0) - 1) } : p);
+    setPost((p) => (p ? { ...p, commentCount: Math.max(0, (p.commentCount || 0) - 1) } : p));
   }
+
+  // Render a single comment row (shared between root and nested)
+  function renderComment(c, isNested) {
+    const canDelete = currentUser && (Number(c.user.id) === Number(currentUser.id) || isPostOwner);
+    const isReplying = replyingTo === c.id;
+    const replies = !isNested ? getDescendants(c.id, comments) : [];
+    const isExpanded = expandedComments.has(c.id);
+
+    return (
+      <div key={c.id} className={`tweet-reply-card${isNested ? " nested" : ""}`}>
+        <div className="tweet-reply-main">
+          <button className="avatar-button" onClick={() => onNavigate(c.user.id)}>
+            <Avatar user={c.user} />
+          </button>
+          <div className="tweet-reply-body">
+            <div className="tweet-reply-header">
+              <strong className="clickable" onClick={() => onNavigate(c.user.id)}>{c.user.displayName}</strong>
+              <span className="comment-username">@{c.user.username}</span>
+              <span className="comment-time">{formatDate(c.createdAt)}</span>
+              {canDelete && (
+                <button className="delete-btn" onClick={() => handleDeleteComment(c.id)} title="Delete">
+                  <Trash2 size={13} />
+                </button>
+              )}
+            </div>
+            <p className="comment-text">{c.content}</p>
+            <div className="tweet-reply-actions">
+              <button
+                className={`comment-like-btn${c.likedByMe ? " liked" : ""}`}
+                onClick={() => handleLikeComment(c.id)}
+                disabled={!token}
+              >
+                <Heart size={14} fill={c.likedByMe ? "currentColor" : "none"} />
+                {c.likeCount > 0 && <span>{c.likeCount}</span>}
+              </button>
+              {token && (
+                <button
+                  className={`comment-reply-btn${isReplying ? " active" : ""}`}
+                  onClick={() => { setReplyingTo(isReplying ? null : c.id); setReplyText(""); }}
+                >
+                  <MessageSquare size={13} />
+                  <span>Reply</span>
+                </button>
+              )}
+              {/* Expand/collapse toggle — only on root comments that have replies */}
+              {!isNested && replies.length > 0 && (
+                <button className="comment-expand-btn" onClick={() => toggleExpand(c.id)}>
+                  {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  <span>{replies.length} {replies.length === 1 ? "reply" : "replies"}</span>
+                </button>
+              )}
+            </div>
+            {/* Inline reply form */}
+            {isReplying && (
+              <div className="inline-reply-form">
+                {currentUser && <Avatar user={currentUser} />}
+                <input
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder={`Reply to @${c.user.username}…`}
+                  autoFocus
+                  disabled={submitting}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitReply(c.id); } }}
+                />
+                <button onClick={() => submitReply(c.id)} disabled={submitting || !replyText.trim()}>
+                  <Plus size={15} />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Nested replies thread — shown when expanded */}
+        {!isNested && isExpanded && replies.length > 0 && (
+          <div className="comment-replies">
+            {replies.map((reply) => renderComment(reply, true))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const rootComments = comments.filter((c) => !c.parentId);
 
   return (
     <div className="post-detail-view">
@@ -1367,9 +1487,10 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
       {post ? (
         <PostCard post={post} token={token} currentUser={currentUser} onLike={onLike} onNavigate={onNavigate} activeSpotifyId={activeSpotifyId} onDelete={onDelete} onOpenPost={null} />
       ) : (
-        <div className="post-detail-loading">Loading...</div>
+        <div className="post-detail-loading">Loading…</div>
       )}
 
+      {/* Top-level reply composer */}
       {token && (
         <div className="detail-reply-composer">
           {currentUser && <Avatar user={currentUser} />}
@@ -1377,73 +1498,23 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
             className="detail-reply-input"
             value={replyingTo === null ? replyText : ""}
             onChange={(e) => { setReplyingTo(null); setReplyText(e.target.value); }}
-            placeholder="Post your reply..."
+            placeholder="Post your reply…"
             disabled={submitting}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitReply(null); } }}
           />
-          <button className="detail-reply-send" onClick={() => submitReply(null)} disabled={submitting || !replyText.trim() || replyingTo !== null}>
+          <button
+            className="detail-reply-send"
+            onClick={() => submitReply(null)}
+            disabled={submitting || !replyText.trim() || replyingTo !== null}
+          >
             Reply
           </button>
         </div>
       )}
 
+      {/* Threaded comment list */}
       <div className="tweet-thread">
-        {comments.map((c) => {
-          const canDelete = currentUser && (Number(c.user.id) === Number(currentUser.id) || isPostOwner);
-          const parentUsername = getParentUsername(c);
-          const isReplying = replyingTo === c.id;
-          return (
-            <div key={c.id} className="tweet-reply-card">
-              <div className="tweet-reply-main">
-                <button className="avatar-button" onClick={() => onNavigate(c.user.id)}>
-                  <Avatar user={c.user} />
-                </button>
-                <div className="tweet-reply-body">
-                  <div className="tweet-reply-header">
-                    <strong className="clickable" onClick={() => onNavigate(c.user.id)}>{c.user.displayName}</strong>
-                    <span className="comment-username">@{c.user.username}</span>
-                    <span className="comment-time">{formatDate(c.createdAt)}</span>
-                    {canDelete && (
-                      <button className="delete-btn" onClick={() => handleDeleteComment(c.id)} title="Delete">
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                  {parentUsername && <p className="replying-to-label">Replying to <span>@{parentUsername}</span></p>}
-                  <p className="comment-text">{c.content}</p>
-                  <div className="tweet-reply-actions">
-                    <button className={`comment-like-btn${c.likedByMe ? " liked" : ""}`} onClick={() => handleLikeComment(c.id)} disabled={!token}>
-                      <Heart size={14} fill={c.likedByMe ? "currentColor" : "none"} />
-                      {c.likeCount > 0 && <span>{c.likeCount}</span>}
-                    </button>
-                    {token && (
-                      <button className={`comment-reply-btn${isReplying ? " active" : ""}`} onClick={() => { setReplyingTo(isReplying ? null : c.id); setReplyText(""); }}>
-                        <MessageSquare size={13} />
-                        <span>Reply</span>
-                      </button>
-                    )}
-                  </div>
-                  {isReplying && (
-                    <div className="inline-reply-form">
-                      {currentUser && <Avatar user={currentUser} />}
-                      <input
-                        value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        placeholder={`Reply to @${c.user.username}...`}
-                        autoFocus
-                        disabled={submitting}
-                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitReply(c.id); } }}
-                      />
-                      <button onClick={() => submitReply(c.id)} disabled={submitting || !replyText.trim()}>
-                        <Plus size={15} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {rootComments.map((c) => renderComment(c, false))}
         {error && <p className="comment-error">{error}</p>}
         {post && comments.length === 0 && <p className="no-replies">No replies yet — be the first!</p>}
       </div>
