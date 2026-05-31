@@ -238,7 +238,10 @@ export async function getPost(token, postId) {
   try {
     return await request(`/posts/${postId}`, { token });
   } catch {
-    return { post: null };
+    const state = loadLocalState();
+    const current = userFromToken(token, state);
+    const post = state.posts.find((p) => p.id === Number(postId));
+    return { post: post ? decoratedPost(post, current, state) : null };
   }
 }
 
