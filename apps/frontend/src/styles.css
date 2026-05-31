@@ -2225,9 +2225,15 @@ button {
   color: var(--vibe-ink);
   font-family: var(--vibe-font);
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-y: auto;
   overflow-x: hidden;
   scroll-behavior: smooth;
 }
+/* allow the page to scroll when landing is shown */
+body:has(.landing) { overflow: auto; height: auto; }
+html:has(.landing) { overflow: auto; height: auto; }
+
 .landing * { box-sizing: border-box; margin: 0; padding: 0; }
 .landing a { color: inherit; text-decoration: none; }
 .landing-wrap { max-width: 1240px; margin: 0 auto; padding: 0 48px; }
