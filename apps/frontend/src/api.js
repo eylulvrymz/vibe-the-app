@@ -206,33 +206,40 @@ export async function register(displayName, username, password, genres, photoUrl
 }
 
 export async function updateProfile(token, updates, currentUser) {
+  // Always persist to local state first so changes survive regardless of backend
+  const state = loadLocalState();
+  const current = currentUser
+    ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
+    : userFromToken(token, state);
+  let idx = state.users.findIndex((u) => u.id === current.id);
+  if (idx < 0 && currentUser) {
+    // User missing from local state — add them so future saves work
+    state.users.push({ ...currentUser });
+    idx = state.users.length - 1;
+  }
+  if (idx >= 0) {
+    const oldUsername = state.users[idx].username || "";
+    state.users[idx] = { ...state.users[idx], ...updates };
+    state.posts = state.posts.map((p) =>
+      p.user && p.user.id === current.id ? { ...p, user: { ...p.user, ...updates } } : p
+    );
+    if (updates.username && updates.username.toLowerCase() !== oldUsername.toLowerCase()) {
+      const oldKey = oldUsername.toLowerCase();
+      const newKey = updates.username.toLowerCase();
+      if (state.credentials[oldKey] !== undefined) {
+        state.credentials[newKey] = state.credentials[oldKey];
+        delete state.credentials[oldKey];
+      } else {
+        state.credentials[newKey] = state.credentials[newKey] ?? "";
+      }
+    }
+    saveLocalState(state);
+  }
+  // Then attempt backend (no-op in offline/GitHub Pages mode)
   try {
     return await request("/users/me", { method: "PATCH", token, body: updates });
   } catch {
-    const state = loadLocalState();
-    const current = currentUser
-      ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
-      : userFromToken(token, state);
-    const idx = state.users.findIndex((u) => u.id === current.id);
-    if (idx >= 0) {
-      state.users[idx] = { ...state.users[idx], ...updates };
-      // patch the user object inside any existing posts too
-      state.posts = state.posts.map((p) =>
-        p.user && p.user.id === current.id ? { ...p, user: { ...p.user, ...updates } } : p
-      );
-      // if username changed, migrate credentials key so login still works
-      if (updates.username && updates.username.toLowerCase() !== current.username.toLowerCase()) {
-        const oldKey = current.username.toLowerCase();
-        const newKey = updates.username.toLowerCase();
-        if (state.credentials[oldKey] !== undefined) {
-          state.credentials[newKey] = state.credentials[oldKey];
-          delete state.credentials[oldKey];
-        }
-      }
-      saveLocalState(state);
-      return { user: state.users[idx], offline: true };
-    }
-    return { user: current, offline: true };
+    return { user: idx >= 0 ? state.users[idx] : current, offline: true };
   }
 }
 
