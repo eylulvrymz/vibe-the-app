@@ -71,7 +71,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [selectedProfileId, setSelectedProfileId] = useState(savedSession?.user?.id || null);
   const [suggestions, setSuggestions] = useState([]);
-  const [query, setQuery] = useState("synth");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState({ tracks: [], users: [] });
   const [pendingTrackId, setPendingTrackId] = useState("");
   const [status, setStatus] = useState("");
@@ -334,7 +334,7 @@ export default function App() {
           </div>
           <form className="search-pill" onSubmit={handleSearch}>
             <Search size={18} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search Vibe" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search Vibe" placeholder="Search..." />
           </form>
         </header>
 
