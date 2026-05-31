@@ -231,6 +231,23 @@ button {
 }
 .search-pill input::placeholder { color: var(--vibe-faint); }
 
+/* ── Page transition loader ── */
+.page-loader {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.page-loader-ring {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid rgba(46,230,198,.15);
+  border-top-color: var(--vibe-teal);
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 .status-strip {
   display: inline-flex;
   margin-bottom: 18px;

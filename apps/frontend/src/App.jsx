@@ -80,6 +80,7 @@ export default function App() {
   const [deviceId, setDeviceId] = useState(null);
   const [playingTrackId, setPlayingTrackId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [pageLoading, setPageLoading] = useState(false);
   const skipNextRefreshRef = useRef(false);
 
   useEffect(() => {
@@ -277,16 +278,19 @@ export default function App() {
   }
 
   function handleOpenPost(postId) {
+    setPageLoading(true);
     setPrevView(view);
     setSelectedPostId(postId);
     setView("post");
   }
 
   async function openProfile(userId) {
+    setPageLoading(true);
     setSelectedProfileId(userId);
     setView("profile");
     const profileData = await getProfile(session.token, userId);
     setProfile(profileData.user);
+    setPageLoading(false);
   }
 
   function openOwnProfile() {
@@ -340,7 +344,9 @@ export default function App() {
 
         {status && <div className="status-strip">{status}</div>}
 
-        {view === "post" ? (
+        {pageLoading ? (
+          <PageLoader />
+        ) : view === "post" ? (
           <PostDetailView
             postId={selectedPostId}
             token={session.token}
@@ -350,6 +356,7 @@ export default function App() {
             onNavigate={openProfile}
             activeSpotifyId={activeSpotifyId}
             onDelete={handleDeletePost}
+            onLoaded={() => setPageLoading(false)}
           />
         ) : view === "profile" ? (
           <ProfileView
@@ -1333,7 +1340,7 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
   );
 }
 
-function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate, activeSpotifyId, onDelete }) {
+function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate, activeSpotifyId, onDelete, onLoaded }) {
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -1350,6 +1357,7 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
     Promise.all([getPost(token, postId), getComments(token, postId)]).then(([pd, cd]) => {
       setPost(pd.post);
       setComments(cd.comments || []);
+      onLoaded?.();
     });
   }, [postId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1824,6 +1832,14 @@ function Panel({ title, icon: Icon, children }) {
       </h2>
       <div className="panel-list">{children}</div>
     </section>
+  );
+}
+
+function PageLoader() {
+  return (
+    <div className="page-loader">
+      <div className="page-loader-ring" />
+    </div>
   );
 }
 
