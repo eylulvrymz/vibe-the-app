@@ -3,6 +3,14 @@ import { demoUserPassword, follows, seedLikes, seedPosts, tracks, users } from "
 const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? "http://localhost:8080/api" : "");
 const STORAGE_KEY = "vibe-local-state";
 
+// Local "demo" fallback is ONLY for deployments with no backend configured.
+// When a real backend IS configured, never silently fall back to offline mode —
+// surface the real error instead. Falling back would create a mixed state where
+// auth is local (with a local user id) while reads hit the backend (returning a
+// DIFFERENT user that happens to share that id). That is the root cause of
+// "my new account shows someone else's profile".
+const OFFLINE_FALLBACK = !API_BASE;
+
 function normalizeLocalState(state) {
   const credentials = { ...(state.credentials || {}) };
   for (const user of users) {
@@ -123,7 +131,8 @@ function profilePayload(state, currentUser, userId) {
 export async function login(username, password) {
   try {
     return await request("/auth/login", { method: "POST", body: { username, password } });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const user = state.users.find((item) => item.username.toLowerCase() === username.toLowerCase());
     if (!user) {
@@ -148,7 +157,8 @@ export async function connectSpotify(spotifyId, displayName, username) {
       method: "POST",
       body: { spotifyId, displayName, username },
     });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     let user = state.users.find((u) => u.spotifyId === spotifyId);
     if (!user) {
@@ -184,7 +194,8 @@ export async function register(displayName, username, password, genres, photoUrl
       method: "POST",
       body: { displayName, username, password, genres },
     });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     if (state.users.some((user) => user.username.toLowerCase() === username.toLowerCase())) {
       throw new Error("Username is already taken");
@@ -238,7 +249,8 @@ export async function updateProfile(token, updates, currentUser) {
   // Then attempt backend (no-op in offline/GitHub Pages mode)
   try {
     return await request("/users/me", { method: "PATCH", token, body: updates });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     return { user: idx >= 0 ? state.users[idx] : current, offline: true };
   }
 }
@@ -246,7 +258,8 @@ export async function updateProfile(token, updates, currentUser) {
 export async function getPost(token, postId) {
   try {
     return await request(`/posts/${postId}`, { token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const current = userFromToken(token, state);
     const post = state.posts.find((p) => p.id === Number(postId));
@@ -257,7 +270,8 @@ export async function getPost(token, postId) {
 export async function getFeed(token) {
   try {
     return await request("/feed", { token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const current = userFromToken(token, state);
     return { posts: decoratedPosts(state.posts, current, state) };
@@ -267,7 +281,8 @@ export async function getFeed(token) {
 export async function getTrending(token) {
   try {
     return await request("/trending", { token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const current = userFromToken(token, state);
     const posts = decoratedPosts(state.posts, current, state).sort((left, right) => right.likeCount - left.likeCount);
@@ -278,7 +293,8 @@ export async function getTrending(token) {
 export async function getTracks() {
   try {
     return await request("/tracks");
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     return { tracks: loadLocalState().tracks };
   }
 }
@@ -286,7 +302,8 @@ export async function getTracks() {
 export async function createPost(token, payload, currentUser) {
   try {
     return await request("/posts", { method: "POST", token, body: payload });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     // prefer the explicitly passed user (avoids token-fallback to wrong mock user)
     const user = currentUser
@@ -331,7 +348,8 @@ export async function createPost(token, payload, currentUser) {
 export async function likePost(token, postId, currentUser) {
   try {
     return await request(`/posts/${postId}/like`, { method: "POST", token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const current = currentUser
       ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
@@ -354,7 +372,8 @@ export async function likePost(token, postId, currentUser) {
 export async function getProfile(token, userId) {
   try {
     return await request(`/users/${userId}`, { token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const current = userFromToken(token, state);
     return { user: profilePayload(state, current, userId) };
@@ -364,7 +383,8 @@ export async function getProfile(token, userId) {
 export async function getComments(token, postId) {
   try {
     return await request(`/posts/${postId}/comments`, { token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     return { comments: [] };
   }
 }
@@ -373,6 +393,7 @@ export async function addComment(token, postId, content, currentUser, parentId) 
   try {
     return await request(`/posts/${postId}/comments`, { method: "POST", token, body: { content, ...(parentId ? { parentId } : {}) } });
   } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     if (err.message === "Authentication required") throw err;
     return { comment: { id: Date.now(), content, parentId: parentId || null, createdAt: new Date().toISOString(), likeCount: 0, likedByMe: false, user: currentUser || { username: "you", displayName: "You", avatarKey: "U" } } };
   }
@@ -381,7 +402,8 @@ export async function addComment(token, postId, content, currentUser, parentId) 
 export async function deletePost(token, postId) {
   try {
     return await request(`/posts/${postId}`, { method: "DELETE", token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     return { ok: true, offline: true };
   }
 }
@@ -389,7 +411,8 @@ export async function deletePost(token, postId) {
 export async function likeComment(token, postId, commentId) {
   try {
     return await request(`/posts/${postId}/comments/${commentId}/like`, { method: "POST", token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     return { likeCount: 0, likedByMe: false };
   }
 }
@@ -397,7 +420,8 @@ export async function likeComment(token, postId, commentId) {
 export async function deleteComment(token, postId, commentId) {
   try {
     return await request(`/posts/${postId}/comments/${commentId}`, { method: "DELETE", token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     return { ok: true, offline: true };
   }
 }
@@ -405,7 +429,8 @@ export async function deleteComment(token, postId, commentId) {
 export async function followUser(token, userId, currentUser) {
   try {
     return await request(`/users/${userId}/follow`, { method: "POST", token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const current = currentUser
       ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
@@ -421,7 +446,8 @@ export async function followUser(token, userId, currentUser) {
 export async function unfollowUser(token, userId, currentUser) {
   try {
     return await request(`/users/${userId}/follow`, { method: "DELETE", token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const current = currentUser
       ? (state.users.find((u) => u.id === currentUser.id) || currentUser)
@@ -435,7 +461,8 @@ export async function unfollowUser(token, userId, currentUser) {
 export async function getSuggestions(token) {
   try {
     return await request("/suggestions", { token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const current = userFromToken(token, state);
     const direct = new Set(state.follows.filter(([from]) => from === current.id).map(([, to]) => to));
@@ -458,7 +485,8 @@ export async function getSuggestions(token) {
 export async function search(token, query) {
   try {
     return await request(`/search?q=${encodeURIComponent(query)}`, { token });
-  } catch {
+  } catch (err) {
+    if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const needle = query.toLowerCase();
     return {
