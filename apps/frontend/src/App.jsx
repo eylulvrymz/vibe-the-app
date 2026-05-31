@@ -781,17 +781,6 @@ function LandingPage({ onEnter }) {
               <h3>Post the track</h3>
               <p>Pull any song straight from Spotify, tag the mood, drop a thought. Posting takes ten seconds.</p>
             </div>
-            <div className="landing-card landing-card-wide">
-              <div>
-                <div className="landing-card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="23" height="23"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
-                <h3>Then it disappears</h3>
-                <p>Vibes vanish in 24 hours. The feed stays fresh, the pressure stays low — share the song you love today without it living forever.</p>
-              </div>
-              <div className="landing-ephem">
-                <span className="landing-ephem-text">// fades in 23:41:08</span>
-                <div className="landing-ephem-glow" />
-              </div>
-            </div>
             <div className="landing-card">
               <div className="landing-card-ic"><MessageSquare size={23} /></div>
               <h3>Talk it out</h3>
