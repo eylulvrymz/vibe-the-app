@@ -46,6 +46,7 @@ import {
   likePost,
   login,
   register,
+  updateProfile,
   search,
   getPlaylists,
   createPlaylist,
@@ -394,7 +395,18 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar view={view} setView={setView} user={session.user} onLogout={logout} onOwnProfile={openOwnProfile} />
+      <Sidebar
+  view={view}
+  setView={setView}
+  user={session.user}
+  onLogout={logout}
+  onOwnProfile={openOwnProfile}
+  onOpenPlaylists={async () => {
+    setView("playlists");
+    const data = await getPlaylists(session.token, session.user.id);
+    setPlaylists(data.playlists || []);
+  }}
+/>
       <main className="main-panel">
         <header className="topbar">
           <div>
@@ -1074,13 +1086,13 @@ function LandingPage({ onEnter }) {
   );
 }
 
-function Sidebar({ view, setView, user, onLogout, onOwnProfile }) {
+function Sidebar({ view, setView, user, onLogout, onOwnProfile, onOpenPlaylists }) {
  const items = [
     ["feed", Home, "Feed", () => setView("feed")],
     ["trending", TrendingUp, "Trending", () => setView("trending")],
     ["profile", User, "Profile", onOwnProfile],
     ["search", Search, "Search", () => setView("search")],
-    ["playlists", ListMusic, "Playlists", () => setView("playlists")],
+    ["playlists", ListMusic, "Playlists", onOpenPlaylists],
   ];
 
   return (
@@ -1958,3 +1970,381 @@ function formatDate(value) {
   }
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+function PlaylistsView({
+  playlists,
+  currentUser,
+  onCreatePlaylist,
+  onDeletePlaylist,
+  onLikePlaylist,
+  onAddTrack,
+  onRemoveTrack,
+  tracks,
+  isOwnProfile,
+  spotifyToken,
+}) {
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", isPublic: true });
+  const [expandedId, setExpandedId] = useState(null);
+  const [showPickerId, setShowPickerId] = useState(null);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const [spotifyResults, setSpotifyResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimerRef = useRef(null);
+
+  async function doSpotifySearch(q) {
+    const query = (q ?? pickerQuery).trim();
+    if (!query) { setSpotifyResults([]); return; }
+    setSearching(true);
+    try {
+      const results = await searchSpotifyTracks(spotifyToken, query);
+      setSpotifyResults(results);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function handlePickerQueryChange(e) {
+    const val = e.target.value;
+    setPickerQuery(val);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => doSpotifySearch(val), 350);
+  }
+
+  async function handleCreateSubmit(e) {
+    e.preventDefault();
+    await onCreatePlaylist(form);
+    setForm({ title: "", description: "", isPublic: true });
+    setShowModal(false);
+  }
+
+  async function handleAddSpotifyTrack(playlistId, track) {
+    await onAddTrack(playlistId, {
+      spotifyTrackId: track.spotifyId,
+      spotifyTitle: track.title,
+      spotifyArtist: track.artist,
+      spotifyAlbum: track.album,
+      spotifyCoverUrl: track.coverUrl,
+      spotifyPreviewUrl: track.previewUrl || "",
+    });
+    setShowPickerId(null);
+    setPickerQuery("");
+    setSpotifyResults([]);
+  }
+
+  async function handleAddLocalTrack(playlistId, track) {
+    await onAddTrack(playlistId, track.id);
+    setShowPickerId(null);
+  }
+
+  async function handleCopyShareLink(playlist) {
+    const base = window.location.origin + window.location.pathname;
+    const url = `${base}?share=${playlist.shareKey}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // ignore
+    }
+  }
+
+  return (
+    <div className="playlists-view">
+      {isOwnProfile && (
+        <div className="playlists-toolbar">
+          <button className="create-playlist-btn" onClick={() => setShowModal(true)}>
+            <Plus size={16} /> New playlist
+          </button>
+        </div>
+      )}
+
+      {playlists.length === 0 ? (
+        <div className="empty-playlists">
+          <ListMusic size={40} style={{ opacity: 0.3 }} />
+          <p>No playlists yet.</p>
+          {isOwnProfile && (
+            <button className="create-playlist-btn" onClick={() => setShowModal(true)}>
+              <Plus size={15} /> Create your first playlist
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="playlist-grid">
+          {playlists.map((pl) => (
+            <PlaylistCard
+              key={pl.id}
+              playlist={pl}
+              currentUser={currentUser}
+              isOwnProfile={isOwnProfile}
+              expanded={expandedId === pl.id}
+              onToggle={() => setExpandedId(expandedId === pl.id ? null : pl.id)}
+              onLike={() => onLikePlaylist(pl.id)}
+              onDelete={() => onDeletePlaylist(pl.id)}
+              onRemoveTrack={(trackId) => onRemoveTrack(pl.id, trackId)}
+              onShare={() => handleCopyShareLink(pl)}
+              showPicker={showPickerId === pl.id}
+              onTogglePicker={() => {
+                setShowPickerId(showPickerId === pl.id ? null : pl.id);
+                setPickerQuery("");
+                setSpotifyResults([]);
+              }}
+              pickerQuery={pickerQuery}
+              onPickerQueryChange={handlePickerQueryChange}
+              onPickerSearch={() => doSpotifySearch()}
+              spotifyResults={spotifyResults}
+              searching={searching}
+              localTracks={tracks}
+              onAddSpotifyTrack={(track) => handleAddSpotifyTrack(pl.id, track)}
+              onAddLocalTrack={(track) => handleAddLocalTrack(pl.id, track)}
+              spotifyToken={spotifyToken}
+            />
+          ))}
+        </div>
+      )}
+
+      {showModal && (
+        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2><ListMusic size={18} /> New Playlist</h2>
+              <button className="modal-close" onClick={() => setShowModal(false)}><X size={18} /></button>
+            </div>
+            <form className="modal-form" onSubmit={handleCreateSubmit}>
+              <label>
+                Title
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  placeholder="My playlist"
+                  required
+                />
+              </label>
+              <label>
+                Description <small>(optional)</small>
+                <input
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="What's the vibe?"
+                />
+              </label>
+              <label className="toggle-row">
+                <span><Globe size={15} /> Public</span>
+                <button
+                  type="button"
+                  className={`toggle-btn${form.isPublic ? " on" : ""}`}
+                  onClick={() => setForm({ ...form, isPublic: !form.isPublic })}
+                />
+              </label>
+              <button className="new-btn-primary" type="submit">
+                <Plus size={16} /> Create playlist
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlaylistCard({
+  playlist,
+  currentUser,
+  isOwnProfile,
+  expanded,
+  onToggle,
+  onLike,
+  onDelete,
+  onRemoveTrack,
+  onShare,
+  showPicker,
+  onTogglePicker,
+  pickerQuery,
+  onPickerQueryChange,
+  onPickerSearch,
+  spotifyResults,
+  searching,
+  localTracks,
+  onAddSpotifyTrack,
+  onAddLocalTrack,
+  spotifyToken,
+}) {
+  const isOwner = currentUser && playlist.user && playlist.user.id === currentUser.id;
+  const tracks = playlist.tracks || [];
+
+  function Cover() {
+    if (tracks.length === 0) {
+      return (
+        <div className="playlist-cover-empty">
+          <ListMusic size={40} />
+        </div>
+      );
+    }
+    if (tracks.length === 1 || playlist.coverUrl) {
+      return (
+        <img
+          className="playlist-cover-single"
+          src={playlist.coverUrl || tracks[0]?.coverUrl}
+          alt={playlist.title}
+        />
+      );
+    }
+    return (
+      <div className="playlist-cover-mosaic">
+        {[0, 1, 2, 3].map((i) =>
+          tracks[i] ? (
+            <img key={i} src={tracks[i].coverUrl} alt="" />
+          ) : (
+            <div key={i} className="playlist-cover-blank" />
+          )
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`playlist-card${expanded ? " expanded" : ""}`}>
+      <div className="playlist-cover-wrap" onClick={onToggle}>
+        <Cover />
+        <div className="playlist-cover-overlay">
+          <ChevronDown size={16} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+        </div>
+      </div>
+
+      <div className="playlist-info">
+        <div className="playlist-title-row">
+          <div>
+            <h3>{playlist.title}</h3>
+            {playlist.description && <p className="playlist-desc">{playlist.description}</p>}
+          </div>
+          <div className="playlist-badges">
+            {playlist.isPublic ? (
+              <span className="badge badge-public" title="Public"><Globe size={13} /></span>
+            ) : (
+              <span className="badge badge-private" title="Private"><Lock size={13} /></span>
+            )}
+          </div>
+        </div>
+
+        <div className="playlist-meta-row">
+          <span>{playlist.trackCount || tracks.length} tracks</span>
+          <span>{playlist.likeCount || 0} likes</span>
+        </div>
+
+        <div className="playlist-actions">
+          <button
+            className={`pl-action-btn${playlist.likedByMe ? " liked" : ""}`}
+            onClick={onLike}
+          >
+            <Heart size={14} fill={playlist.likedByMe ? "currentColor" : "none"} />
+            {playlist.likedByMe ? "Liked" : "Like"}
+          </button>
+
+          {playlist.isPublic && (
+            <button className="pl-action-btn" onClick={onShare} title="Copy share link">
+              <Share2 size={14} /> Share
+            </button>
+          )}
+
+          {isOwner && isOwnProfile && (
+            <>
+              <button className="pl-action-btn" onClick={onTogglePicker}>
+                <Plus size={14} /> Add track
+              </button>
+              <button className="pl-action-btn delete" onClick={onDelete}>
+                <Trash2 size={14} />
+              </button>
+            </>
+          )}
+        </div>
+
+        {showPicker && (
+          <div className="track-picker">
+            <div className="track-picker-header">
+              <input
+                value={pickerQuery}
+                onChange={onPickerQueryChange}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onPickerSearch(); } }}
+                placeholder={spotifyToken ? "Search Spotify or pick below…" : "Pick a track…"}
+                autoFocus
+              />
+              {spotifyToken && (
+                <button onClick={onPickerSearch} disabled={searching}>
+                  <Search size={14} />
+                </button>
+              )}
+            </div>
+            <div className="track-picker-list">
+              {spotifyToken && spotifyResults.length > 0 && (
+                <>
+                  <p className="picker-section-label">Spotify results</p>
+                  {spotifyResults.map((t) => (
+                    <button key={t.spotifyId} className="picker-track-row" onClick={() => onAddSpotifyTrack(t)}>
+                      <img src={t.coverUrl} alt="" />
+                      <div>
+                        <strong>{t.title}</strong>
+                        <span>{t.artist}</span>
+                      </div>
+                    </button>
+                  ))}
+                </>
+              )}
+              {localTracks.length > 0 && (
+                <>
+                  <p className="picker-section-label">Your tracks</p>
+                  {localTracks
+                    .filter((t) => !pickerQuery || `${t.title} ${t.artist}`.toLowerCase().includes(pickerQuery.toLowerCase()))
+                    .map((t) => (
+                      <button key={t.id} className="picker-track-row" onClick={() => onAddLocalTrack(t)}>
+                        <img src={t.coverUrl || ""} alt="" />
+                        <div>
+                          <strong>{t.title}</strong>
+                          <span>{t.artist}</span>
+                        </div>
+                      </button>
+                    ))}
+                </>
+              )}
+              {spotifyResults.length === 0 && localTracks.length === 0 && (
+                <p className="picker-empty">No tracks found.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {expanded && (
+        <div className="playlist-tracklist">
+          {tracks.length === 0 ? (
+            <p className="pl-empty">No tracks yet — add some above!</p>
+          ) : (
+            tracks.map((t, i) => (
+              <div className="pl-track-row" key={t.id}>
+                <span className="pl-track-num">{i + 1}</span>
+                <img src={t.coverUrl || ""} alt="" />
+                <div className="pl-track-info">
+                  <strong>{t.title}</strong>
+                  <span>{t.artist}</span>
+                </div>
+                {t.spotifyId && (
+                  
+                    className="pl-spotify-link"
+                    href={`https://open.spotify.com/track/${t.spotifyId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Spotify ↗
+                  </a>
+                )}
+                {isOwner && isOwnProfile && (
+                  <button className="pl-remove-btn" onClick={() => onRemoveTrack(t.id)}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+      
