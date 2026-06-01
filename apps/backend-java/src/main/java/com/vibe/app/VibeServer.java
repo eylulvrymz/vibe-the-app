@@ -127,7 +127,141 @@ public final class VibeServer {
             long currentUserId = optionalUser(exchange);
             long postId = Long.parseLong(path.substring("/api/posts/".length()));
             Map<String, Object> p = database.getPost(postId, currentUserId);
-            if (p == null) throw new ApiException(404, "Post not found");
+            if (p == null) 
+                // ─── PLAYLIST ROUTES ──────────────────────────────────────────────────────────
+// Add these blocks inside VibeServer.route() BEFORE the final 404 throw.
+// Also call PlaylistDatabase.initPlaylistSchema(connection) at the end of
+// Database.createSchema() (pass the connection field through or expose a getter).
+
+// GET /api/users/:id/playlists
+if ("GET".equals(method) && path.matches("/api/users/\\d+/playlists")) {
+    long currentUserId = optionalUser(exchange);
+    long profileId = Long.parseLong(path.substring("/api/users/".length(), path.length() - "/playlists".length()));
+    sendJson(exchange, 200, Json.object(
+        "playlists", PlaylistDatabase.getUserPlaylists(database.connection(), profileId, currentUserId)
+    ));
+    return;
+}
+
+// POST /api/playlists
+if ("POST".equals(method) && "/api/playlists".equals(path)) {
+    long userId = requireUser(exchange);
+    Map<String, String> body = Json.parseObject(readBody(exchange));
+    String title       = body.getOrDefault("title", "Untitled Playlist");
+    String description = body.getOrDefault("description", "");
+    boolean isPublic   = !"false".equals(body.get("isPublic"));
+    Map<String, Object> playlist = PlaylistDatabase.createPlaylist(
+        database.connection(), userId, title, description, isPublic
+    );
+    sendJson(exchange, 201, Json.object("playlist", playlist));
+    return;
+}
+
+// GET /api/playlists/share/:shareKey
+if ("GET".equals(method) && path.matches("/api/playlists/share/[a-zA-Z0-9]+")) {
+    long currentUserId = optionalUser(exchange);
+    String shareKey = path.substring("/api/playlists/share/".length());
+    Map<String, Object> playlist = PlaylistDatabase.getPlaylistByShareKey(
+        database.connection(), shareKey, currentUserId
+    );
+    if (playlist == null) throw new ApiException(404, "Playlist not found");
+    sendJson(exchange, 200, Json.object("playlist", playlist));
+    return;
+}
+
+// GET /api/playlists/:id
+if ("GET".equals(method) && path.matches("/api/playlists/\\d+")) {
+    long currentUserId = optionalUser(exchange);
+    long playlistId = Long.parseLong(path.substring("/api/playlists/".length()));
+    Map<String, Object> playlist = PlaylistDatabase.getPlaylist(
+        database.connection(), playlistId, currentUserId
+    );
+    if (playlist == null) throw new ApiException(404, "Playlist not found");
+    sendJson(exchange, 200, Json.object("playlist", playlist));
+    return;
+}
+
+// POST /api/playlists/:id/tracks
+if ("POST".equals(method) && path.matches("/api/playlists/\\d+/tracks")) {
+    long userId = requireUser(exchange);
+    long playlistId = Long.parseLong(path.substring("/api/playlists/".length(), path.length() - "/tracks".length()));
+    Map<String, String> body = Json.parseObject(readBody(exchange));
+
+    long trackId;
+    String spotifyTrackId = body.get("spotifyTrackId");
+    if (spotifyTrackId != null && !spotifyTrackId.trim().isEmpty()) {
+        trackId = database.findOrCreateSpotifyTrack(
+            spotifyTrackId,
+            body.get("spotifyTitle"),
+            body.get("spotifyArtist"),
+            body.get("spotifyAlbum"),
+            body.get("spotifyCoverUrl"),
+            body.get("spotifyPreviewUrl")
+        );
+    } else {
+        trackId = parseLong(body.get("trackId"), 0L);
+    }
+    if (trackId == 0L) throw new ApiException(400, "trackId is required");
+
+    try {
+        Map<String, Object> playlist = PlaylistDatabase.addTrackToPlaylist(
+            database.connection(), userId, playlistId, trackId
+        );
+        sendJson(exchange, 200, Json.object("playlist", playlist));
+    } catch (RuntimeException ex) {
+        throw new ApiException(403, ex.getMessage());
+    }
+    return;
+}
+
+// DELETE /api/playlists/:id/tracks/:trackId
+if ("DELETE".equals(method) && path.matches("/api/playlists/\\d+/tracks/\\d+")) {
+    long userId = requireUser(exchange);
+    String[] parts = path.split("/");
+    long playlistId = Long.parseLong(parts[3]);
+    long trackId    = Long.parseLong(parts[5]);
+    try {
+        Map<String, Object> playlist = PlaylistDatabase.removeTrackFromPlaylist(
+            database.connection(), userId, playlistId, trackId
+        );
+        sendJson(exchange, 200, Json.object("playlist", playlist));
+    } catch (RuntimeException ex) {
+        throw new ApiException(403, ex.getMessage());
+    }
+    return;
+}
+
+// POST /api/playlists/:id/like
+if ("POST".equals(method) && path.matches("/api/playlists/\\d+/like")) {
+    long userId = requireUser(exchange);
+    long playlistId = Long.parseLong(path.substring("/api/playlists/".length(), path.length() - "/like".length()));
+    Map<String, Object> playlist = PlaylistDatabase.likePlaylist(
+        database.connection(), userId, playlistId
+    );
+    sendJson(exchange, 200, Json.object("playlist", playlist));
+    return;
+}
+
+// DELETE /api/playlists/:id
+if ("DELETE".equals(method) && path.matches("/api/playlists/\\d+")) {
+    long userId = requireUser(exchange);
+    long playlistId = Long.parseLong(path.substring("/api/playlists/".length()));
+    boolean deleted = PlaylistDatabase.deletePlaylist(database.connection(), userId, playlistId);
+    sendJson(exchange, deleted ? 200 : 403, Json.object("ok", deleted));
+    return;
+}
+
+// ─── END PLAYLIST ROUTES ──────────────────────────────────────────────────────
+//
+// In Database.java, add this public getter so VibeServer can pass the
+// Connection to PlaylistDatabase:
+//
+//   public Connection connection() { return this.connection; }
+//
+// And in Database.createSchema(), at the end, add:
+//
+//   PlaylistDatabase.initPlaylistSchema(this.connection);
+                throw new ApiException(404, "Post not found");
             sendJson(exchange, 200, Json.object("post", p));
             return;
         }
