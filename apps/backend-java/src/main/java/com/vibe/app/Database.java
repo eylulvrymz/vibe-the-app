@@ -17,7 +17,8 @@ import java.util.UUID;
 
 public final class Database {
     private final Connection connection;
-
+    public Connection connection() { return this.connection; }
+   
     public Database(Path databasePath) throws Exception {
         Path parent = databasePath.getParent();
         if (parent != null) {
