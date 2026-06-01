@@ -463,7 +463,7 @@ export default function App() {
           />
         ) : (
       
-        ) : (
+    
           <FeedView
             posts={activePosts}
             tracks={tracks}
