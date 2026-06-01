@@ -2324,7 +2324,8 @@ function PlaylistCard({
                   <span>{t.artist}</span>
                 </div>
                 {t.spotifyId && (
-                  
+          
+                  <a
                     className="pl-spotify-link"
                     href={`https://open.spotify.com/track/${t.spotifyId}`}
                     target="_blank"
