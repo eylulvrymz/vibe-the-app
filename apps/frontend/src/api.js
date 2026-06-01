@@ -499,3 +499,149 @@ export async function search(token, query) {
     };
   }
 }
+// ─── PLAYLIST API ─────────────────────────────────────────────────────────────
+// Add these functions to apps/frontend/src/api.js
+
+export async function getPlaylists(token, userId) {
+  try {
+    return await request(`/users/${userId}/playlists`, { token });
+  } catch {
+    const state = loadLocalState();
+    const playlists = (state.playlists || []).filter(
+      (p) => p.user.id === Number(userId)
+    );
+    return { playlists };
+  }
+}
+
+export async function createPlaylist(token, { title, description, isPublic }) {
+  try {
+    return await request("/playlists", {
+      method: "POST",
+      token,
+      body: { title, description, isPublic },
+    });
+  } catch {
+    const state = loadLocalState();
+    const current = userFromToken(token, state);
+    const playlist = {
+      id: Math.max(0, ...(state.playlists || []).map((p) => p.id)) + 1,
+      title: title || "Untitled Playlist",
+      description: description || "",
+      coverUrl: "",
+      shareKey: Math.random().toString(36).slice(2, 14),
+      isPublic: isPublic !== false,
+      createdAt: new Date().toISOString(),
+      user: current,
+      likeCount: 0,
+      likedByMe: false,
+      trackCount: 0,
+      tracks: [],
+    };
+    if (!state.playlists) state.playlists = [];
+    state.playlists.unshift(playlist);
+    saveLocalState(state);
+    return { playlist };
+  }
+}
+
+export async function addTrackToPlaylist(token, playlistId, trackId) {
+  try {
+    return await request(`/playlists/${playlistId}/tracks`, {
+      method: "POST",
+      token,
+      body: { trackId },
+    });
+  } catch {
+    const state = loadLocalState();
+    if (!state.playlists) state.playlists = [];
+    const playlist = state.playlists.find((p) => p.id === Number(playlistId));
+    if (playlist) {
+      const track =
+        state.tracks.find((t) => t.id === Number(trackId)) || state.tracks[0];
+      if (track && !playlist.tracks.find((t) => t.id === track.id)) {
+        playlist.tracks.push(track);
+        playlist.trackCount = playlist.tracks.length;
+        if (!playlist.coverUrl && track.coverUrl) playlist.coverUrl = track.coverUrl;
+      }
+      saveLocalState(state);
+      return { playlist };
+    }
+    return { playlist: null };
+  }
+}
+
+export async function removeTrackFromPlaylist(token, playlistId, trackId) {
+  try {
+    return await request(`/playlists/${playlistId}/tracks/${trackId}`, {
+      method: "DELETE",
+      token,
+    });
+  } catch {
+    const state = loadLocalState();
+    if (!state.playlists) return { ok: true };
+    const playlist = state.playlists.find((p) => p.id === Number(playlistId));
+    if (playlist) {
+      playlist.tracks = playlist.tracks.filter((t) => t.id !== Number(trackId));
+      playlist.trackCount = playlist.tracks.length;
+      saveLocalState(state);
+      return { playlist };
+    }
+    return { ok: true };
+  }
+}
+
+export async function likePlaylist(token, playlistId) {
+  try {
+    return await request(`/playlists/${playlistId}/like`, {
+      method: "POST",
+      token,
+    });
+  } catch {
+    const state = loadLocalState();
+    if (!state.playlists) return {};
+    const current = userFromToken(token, state);
+    const playlist = state.playlists.find((p) => p.id === Number(playlistId));
+    if (playlist) {
+      if (playlist.likedByMe) {
+        playlist.likeCount = Math.max(0, playlist.likeCount - 1);
+        playlist.likedByMe = false;
+      } else {
+        playlist.likeCount = (playlist.likeCount || 0) + 1;
+        playlist.likedByMe = true;
+      }
+      saveLocalState(state);
+      return { playlist };
+    }
+    return {};
+  }
+}
+
+export async function deletePlaylist(token, playlistId) {
+  try {
+    return await request(`/playlists/${playlistId}`, {
+      method: "DELETE",
+      token,
+    });
+  } catch {
+    const state = loadLocalState();
+    if (!state.playlists) return { ok: true };
+    state.playlists = state.playlists.filter(
+      (p) => p.id !== Number(playlistId)
+    );
+    saveLocalState(state);
+    return { ok: true };
+  }
+}
+
+export async function getPlaylistByShareKey(shareKey) {
+  try {
+    return await request(`/playlists/share/${shareKey}`);
+  } catch {
+    const state = loadLocalState();
+    const playlist = (state.playlists || []).find(
+      (p) => p.shareKey === shareKey
+    );
+    return playlist ? { playlist } : { playlist: null };
+  }
+}
