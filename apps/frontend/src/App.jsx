@@ -296,7 +296,7 @@ export default function App() {
   }
 }
   async function handleAddTrackToPlaylist(playlistId, track) {
-  const data = await addTrackToPlaylist(session.token, playlistId, track.id);
+  const data = await addTrackToPlaylist(session.token, playlistId, track);
   if (data.playlist) {
     setPlaylists((prev) => prev.map((p) => p.id === playlistId ? data.playlist : p));
   }
