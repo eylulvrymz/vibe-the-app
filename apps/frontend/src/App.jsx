@@ -1,7 +1,5 @@
 import {
   ArrowLeft,
-  Camera,
-  Check,
   Flame,
   Heart,
   Home,
@@ -9,7 +7,6 @@ import {
   MessageSquare,
   Music2,
   Pause,
-  Pencil,
   Play,
   Plus,
   Search,
@@ -19,7 +16,12 @@ import {
   User,
   UserPlus,
   Users,
-  X,
+  ListMusic,
+  Lock,
+  Globe,
+  Share2,
+  CheckCheck,
+  ChevronDown,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -42,7 +44,13 @@ import {
   login,
   register,
   search,
-  updateProfile,
+  getPlaylists,
+  createPlaylist,
+  addTrackToPlaylist,
+  removeTrackFromPlaylist,
+  likePlaylist,
+  deletePlaylist,
+  getPlaylistByShareKey,
 } from "./api.js";
 import { createPlayer, exchangeSpotifyCode, getSpotifyProfile, initiateSpotifyLogin, playTrack, searchSpotifyTracks } from "./spotify.js";
 
@@ -85,6 +93,8 @@ export default function App() {
   const [results, setResults] = useState({ tracks: [], users: [] });
   const [pendingTrackId, setPendingTrackId] = useState("");
   const [status, setStatus] = useState("");
+  const [playlists, setPlaylists] = useState([]);
+  const [sharedPlaylistKey, setSharedPlaylistKey] = useState(null);
   const [spotifyError, setSpotifyError] = useState("");
   const [player, setPlayer] = useState(null);
   const [deviceId, setDeviceId] = useState(null);
@@ -267,7 +277,34 @@ export default function App() {
     setPendingTrackId(String(track.id));
     setView("feed");
   }
-
+  async function handleCreatePlaylist(form) {
+  const data = await createPlaylist(session.token, form);
+  setPlaylists((prev) => [data.playlist, ...prev]);
+}
+  async function handleDeletePlaylist(playlistId) {
+  await deletePlaylist(session.token, playlistId);
+  setPlaylists((prev) => prev.filter((p) => p.id !== playlistId));
+}
+  async function handleLikePlaylist(playlistId) {
+  const data = await likePlaylist(session.token, playlistId);
+  if (data.playlist) {
+    setPlaylists((prev) => prev.map((p) => p.id === playlistId ? data.playlist : p));
+  }
+}
+  async function handleAddTrackToPlaylist(playlistId, track) {
+  const data = await addTrackToPlaylist(session.token, playlistId, track.id);
+  if (data.playlist) {
+    setPlaylists((prev) => prev.map((p) => p.id === playlistId ? data.playlist : p));
+  }
+}
+  async function handleRemoveTrackFromPlaylist(playlistId, trackId) {
+  const data = await removeTrackFromPlaylist(session.token, playlistId, trackId);
+  if (data.playlist) {
+    setPlaylists((prev) => prev.map((p) => p.id === playlistId ? data.playlist : p));
+  }
+}
+ 
+  
   async function handleDeletePost(postId) {
     await deletePost(session.token, postId);
     setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -398,7 +435,7 @@ export default function App() {
             onUpdatePhoto={handleUpdatePhoto}
             onUpdateUsername={handleUpdateUsername}
           />
-        ) : view === "search" ? (
+      ) : view === "search" ? (
           <SearchView
             results={results}
             posts={posts}
@@ -411,6 +448,21 @@ export default function App() {
             currentUser={session.user}
             token={session.token}
           />
+        ) : view === "playlists" ? (
+          <PlaylistsView
+            playlists={playlists}
+            currentUser={session.user}
+            onCreatePlaylist={handleCreatePlaylist}
+            onDeletePlaylist={handleDeletePlaylist}
+            onLikePlaylist={handleLikePlaylist}
+            onAddTrack={handleAddTrackToPlaylist}
+            onRemoveTrack={handleRemoveTrackFromPlaylist}
+            tracks={tracks}
+            isOwnProfile={true}
+            spotifyToken={session.spotifyToken}
+          />
+        ) : (
+      
         ) : (
           <FeedView
             posts={activePosts}
@@ -1020,11 +1072,12 @@ function LandingPage({ onEnter }) {
 }
 
 function Sidebar({ view, setView, user, onLogout, onOwnProfile }) {
-  const items = [
+ const items = [
     ["feed", Home, "Feed", () => setView("feed")],
     ["trending", TrendingUp, "Trending", () => setView("trending")],
     ["profile", User, "Profile", onOwnProfile],
     ["search", Search, "Search", () => setView("search")],
+    ["playlists", ListMusic, "Playlists", () => setView("playlists")],
   ];
 
   return (
