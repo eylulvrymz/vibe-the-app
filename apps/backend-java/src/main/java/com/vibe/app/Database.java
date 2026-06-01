@@ -28,6 +28,7 @@ public final class Database {
         this.connection = DriverManager.getConnection("jdbc:sqlite:" + databasePath.toAbsolutePath());
         this.connection.createStatement().execute("PRAGMA foreign_keys = ON");
         createSchema();
+        PlaylistDatabase.initPlaylistSchema(this.connection);
         seedIfEmpty();
     }
 
