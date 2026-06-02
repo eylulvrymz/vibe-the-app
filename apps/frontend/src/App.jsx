@@ -280,15 +280,49 @@ export default function App() {
   }
 
   async function handleLike(postId) {
-    const payload = await likePost(session.token, postId, session.user);
-    if (!payload.post) {
-      return;
+    // Optimistic update: flip the heart immediately so the UI feels instant,
+    // then sync with the backend in the background and reconcile.
+    const optimistic = (post) => {
+      if (post.id !== postId) return post;
+      const liked = !post.likedByMe;
+      return {
+        ...post,
+        likedByMe: liked,
+        likeCount: Math.max(0, (post.likeCount || 0) + (liked ? 1 : -1)),
+      };
+    };
+    const applyOptimistic = (items = []) => items.map(optimistic);
+    setPosts(applyOptimistic);
+    setTrending(applyOptimistic);
+    setProfile((current) =>
+      current ? { ...current, posts: applyOptimistic(current.posts || []) } : current
+    );
+
+    try {
+      const payload = await likePost(session.token, postId, session.user);
+      if (payload.post) {
+        // Reconcile feed/profile with the server's authoritative counts.
+        const reconcile = (items = []) =>
+          items.map((post) => (post.id === postId ? payload.post : post));
+        setPosts(reconcile);
+        setProfile((current) =>
+          current ? { ...current, posts: reconcile(current.posts || []) } : current
+        );
+      }
+      // Refresh trending order in the background (does not block the heart).
+      getTrending(session.token)
+        .then((trend) => setTrending(trend.posts))
+        .catch(() => {});
+    } catch (err) {
+      // Revert the optimistic change on failure.
+      setPosts(applyOptimistic);
+      setTrending(applyOptimistic);
+      setProfile((current) =>
+        current ? { ...current, posts: applyOptimistic(current.posts || []) } : current
+      );
+      setStatus("Beğeni kaydedilemedi: " + (err?.message || "bilinmeyen hata"));
+      setTimeout(() => setStatus(""), 3000);
     }
-    const update = (items = []) => items.map((post) => (post.id === postId ? payload.post : post));
-    const trend = await getTrending(session.token);
-    setPosts(update);
-    setTrending(trend.posts);
-    setProfile((current) => (current ? { ...current, posts: update(current.posts || []) } : current));
   }
 
   async function handlePlay(spotifyTrackId) {
