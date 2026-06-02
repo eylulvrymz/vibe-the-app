@@ -61,13 +61,15 @@ import { createPlayer, exchangeSpotifyCode, getSpotifyProfile, initiateSpotifyLo
 const savedSession = JSON.parse(localStorage.getItem("vibe-session") || "null");
 const assetUrl = (path) => `${import.meta.env.BASE_URL}${path}`;
 
-// Compress an image file to a small JPEG data-URL (max 300 px on each side).
-// Keeps the payload well under 30 KB so large phone photos don't break the upload.
-async function compressImage(file, maxDimension = 300, quality = 0.8) {
-  return new Promise((resolve) => {
+// Compress an image file to a JPEG data-URL (max 500 px on each side, 85% quality).
+// Keeps payload manageable while retaining enough detail for a profile photo.
+async function compressImage(file, maxDimension = 500, quality = 0.85) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Dosya okunamadı."));
     reader.onload = (e) => {
       const img = new Image();
+      img.onerror = () => reject(new Error("Geçersiz görsel dosyası."));
       img.onload = () => {
         let { width, height } = img;
         if (width > height) {
@@ -234,15 +236,22 @@ export default function App() {
   }
 
   async function handleUpdatePhoto(photoUrl) {
-    await updateProfile(session.token, { photoUrl }, session.user);
-    const updatedUser = { ...session.user, photoUrl };
-    skipNextRefreshRef.current = true;
-    setSession((prev) => ({ ...prev, user: updatedUser }));
-    setProfile((prev) => (prev ? { ...prev, photoUrl } : prev));
-    const uid = session.user.id;
-    const patchUser = (u) => (u.id === uid ? { ...u, photoUrl } : u);
-    setPosts((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
-    setTrending((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
+    setStatus("Fotoğraf yükleniyor…");
+    try {
+      await updateProfile(session.token, { photoUrl }, session.user);
+      const updatedUser = { ...session.user, photoUrl };
+      skipNextRefreshRef.current = true;
+      setSession((prev) => ({ ...prev, user: updatedUser }));
+      setProfile((prev) => (prev ? { ...prev, photoUrl } : prev));
+      const uid = session.user.id;
+      const patchUser = (u) => (u.id === uid ? { ...u, photoUrl } : u);
+      setPosts((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
+      setTrending((prev) => prev.map((p) => ({ ...p, user: patchUser(p.user) })));
+      setStatus("Profil fotoğrafı güncellendi ✓");
+      setTimeout(() => setStatus(""), 3000);
+    } catch (err) {
+      setStatus("Fotoğraf yüklenemedi: " + (err?.message || "Bilinmeyen hata"));
+    }
   }
 
   async function handleUpdateUsername(newUsername) {
@@ -565,8 +574,13 @@ function AuthScreen({ onLogin, onRegister, spotifyError, onBack }) {
   async function handlePhotoChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const compressed = await compressImage(file);
-    setForm((f) => ({ ...f, photoUrl: compressed }));
+    if (file.size > 20 * 1024 * 1024) { setError("Fotoğraf çok büyük (maks 20 MB)."); return; }
+    try {
+      const compressed = await compressImage(file);
+      setForm((f) => ({ ...f, photoUrl: compressed }));
+    } catch (err) {
+      setError(err?.message || "Fotoğraf işlenemedi.");
+    }
   }
 
   async function handleSpotifyLogin() {
@@ -1688,8 +1702,13 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
   async function handlePhotoChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const compressed = await compressImage(file);
-    onUpdatePhoto?.(compressed);
+    if (file.size > 20 * 1024 * 1024) { alert("Fotoğraf çok büyük (maks 20 MB)."); return; }
+    try {
+      const compressed = await compressImage(file);
+      onUpdatePhoto?.(compressed);
+    } catch (err) {
+      alert("Fotoğraf işlenemedi: " + (err?.message || "bilinmeyen hata"));
+    }
   }
 
   function validateUsername(u) {

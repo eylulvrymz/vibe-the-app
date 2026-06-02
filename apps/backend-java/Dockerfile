@@ -29,5 +29,7 @@ ENV VIBE_DB_PATH=/app/data/vibe.db
 EXPOSE 8080
 
 CMD ["java", \
+     "-Xmx384m", \
+     "-Xms64m", \
      "-cp", "/app/classes:/app/libs/sqlite-jdbc.jar:/app/libs/slf4j-api.jar:/app/libs/slf4j-simple.jar", \
      "com.vibe.app.VibeServer"]
