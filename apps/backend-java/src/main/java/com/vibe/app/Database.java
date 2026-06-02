@@ -32,10 +32,10 @@ public final class Database {
         seedIfEmpty();
     }
 
-    public synchronized Map<String, Object> createUser(String username, String displayName, String password, String genres) throws SQLException {
+    public synchronized Map<String, Object> createUser(String username, String displayName, String password, String genres, String photoUrl) throws SQLException {
         PasswordUtil.PasswordRecord record = PasswordUtil.hashPassword(password);
         PreparedStatement statement = connection.prepareStatement(
-            "INSERT INTO users (username, display_name, avatar_key, bio, favorite_genres, password_salt, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO users (username, display_name, avatar_key, bio, favorite_genres, password_salt, password_hash, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             Statement.RETURN_GENERATED_KEYS
         );
         statement.setString(1, username.toLowerCase());
@@ -45,6 +45,11 @@ public final class Database {
         statement.setString(5, genres == null || genres.trim().isEmpty() ? "Indie Pop, Alt R&B, Electronic" : genres);
         statement.setString(6, record.salt);
         statement.setString(7, record.hash);
+        if (photoUrl != null && !photoUrl.isEmpty()) {
+            statement.setString(8, photoUrl);
+        } else {
+            statement.setNull(8, java.sql.Types.VARCHAR);
+        }
         statement.executeUpdate();
         ResultSet keys = statement.getGeneratedKeys();
         long id = keys.next() ? keys.getLong(1) : 0L;
@@ -392,7 +397,7 @@ public final class Database {
     private List<Map<String, Object>> posts(String suffix, long currentUserId, int limit) throws SQLException {
         String sql =
             "SELECT p.id, p.mood, p.caption, p.created_at, " +
-            "u.id AS user_id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, " +
+            "u.id AS user_id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, u.photo_url AS user_photo_url, " +
             "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, t.spotify_id AS track_spotify_id, t.preview_url AS track_preview_url, " +
             "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count, " +
             "(SELECT COUNT(*) FROM likes lm WHERE lm.post_id = p.id AND lm.user_id = ?) AS liked_by_me " +
@@ -412,7 +417,7 @@ public final class Database {
     private Map<String, Object> postById(long postId, long currentUserId) throws SQLException {
         String sql =
             "SELECT p.id, p.mood, p.caption, p.created_at, " +
-            "u.id AS user_id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, " +
+            "u.id AS user_id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, u.photo_url AS user_photo_url, " +
             "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, t.spotify_id AS track_spotify_id, t.preview_url AS track_preview_url, " +
             "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count, " +
             "(SELECT COUNT(*) FROM likes lm WHERE lm.post_id = p.id AND lm.user_id = ?) AS liked_by_me " +
@@ -440,6 +445,10 @@ public final class Database {
         user.put("avatarKey", rs.getString("avatar_key"));
         user.put("bio", rs.getString("bio"));
         user.put("favoriteGenres", splitGenres(rs.getString("favorite_genres")));
+        try {
+            String userPhoto = rs.getString("user_photo_url");
+            user.put("photoUrl", userPhoto == null ? "" : userPhoto);
+        } catch (SQLException ignored) {}
         post.put("user", user);
 
         long trackId = rs.getLong("track_id");

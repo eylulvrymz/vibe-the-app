@@ -192,7 +192,7 @@ export async function register(displayName, username, password, genres, photoUrl
   try {
     return await request("/auth/register", {
       method: "POST",
-      body: { displayName, username, password, genres },
+      body: { displayName, username, password, genres, ...(photoUrl ? { photoUrl } : {}) },
     });
   } catch (err) {
     if (!OFFLINE_FALLBACK) throw err;

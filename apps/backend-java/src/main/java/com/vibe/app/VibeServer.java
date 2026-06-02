@@ -370,7 +370,7 @@ public final class VibeServer {
             throw new ApiException(400, "Password must be at least 8 characters");
         }
         try {
-            Map<String, Object> user = database.createUser(username, displayName, password, body.get("genres"));
+            Map<String, Object> user = database.createUser(username, displayName, password, body.get("genres"), body.get("photoUrl"));
             String token = createSession(((Number) user.get("id")).longValue());
             sendJson(exchange, 201, Json.object("token", token, "user", user));
         } catch (SQLException exception) {

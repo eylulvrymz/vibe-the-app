@@ -61,6 +61,32 @@ import { createPlayer, exchangeSpotifyCode, getSpotifyProfile, initiateSpotifyLo
 const savedSession = JSON.parse(localStorage.getItem("vibe-session") || "null");
 const assetUrl = (path) => `${import.meta.env.BASE_URL}${path}`;
 
+// Compress an image file to a small JPEG data-URL (max 300 px on each side).
+// Keeps the payload well under 30 KB so large phone photos don't break the upload.
+async function compressImage(file, maxDimension = 300, quality = 0.8) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxDimension) { height = Math.round(height * maxDimension / width); width = maxDimension; }
+        } else {
+          if (height > maxDimension) { width = Math.round(width * maxDimension / height); height = maxDimension; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 // V-Note logomark as inline SVG (design handoff spec)
 function VibeMark({ size = 32, color = "currentColor" }) {
   return (
@@ -536,12 +562,11 @@ function AuthScreen({ onLogin, onRegister, spotifyError, onBack }) {
     return null;
   }
 
-  function handlePhotoChange(e) {
+  async function handlePhotoChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => setForm((f) => ({ ...f, photoUrl: evt.target.result }));
-    reader.readAsDataURL(file);
+    const compressed = await compressImage(file);
+    setForm((f) => ({ ...f, photoUrl: compressed }));
   }
 
   async function handleSpotifyLogin() {
@@ -1660,12 +1685,11 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
   const [usernameError, setUsernameError] = useState("");
   const [savingUsername, setSavingUsername] = useState(false);
 
-  function handlePhotoChange(e) {
+  async function handlePhotoChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => onUpdatePhoto?.(evt.target.result);
-    reader.readAsDataURL(file);
+    const compressed = await compressImage(file);
+    onUpdatePhoto?.(compressed);
   }
 
   function validateUsername(u) {
