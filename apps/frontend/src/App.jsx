@@ -61,9 +61,9 @@ import { createPlayer, exchangeSpotifyCode, getSpotifyProfile, initiateSpotifyLo
 const savedSession = JSON.parse(localStorage.getItem("vibe-session") || "null");
 const assetUrl = (path) => `${import.meta.env.BASE_URL}${path}`;
 
-// Compress an image file to a JPEG data-URL (max 500 px on each side, 85% quality).
-// Keeps payload manageable while retaining enough detail for a profile photo.
-async function compressImage(file, maxDimension = 500, quality = 0.85) {
+// Crop to center-square, resize to 300×300, export as JPEG.
+// This keeps the payload small (~20–40 KB) and gives a consistent avatar shape.
+async function compressImage(file, size = 300, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Dosya okunamadı."));
@@ -71,16 +71,15 @@ async function compressImage(file, maxDimension = 500, quality = 0.85) {
       const img = new Image();
       img.onerror = () => reject(new Error("Geçersiz görsel dosyası."));
       img.onload = () => {
-        let { width, height } = img;
-        if (width > height) {
-          if (width > maxDimension) { height = Math.round(height * maxDimension / width); width = maxDimension; }
-        } else {
-          if (height > maxDimension) { width = Math.round(width * maxDimension / height); height = maxDimension; }
-        }
+        // Center-square crop: take the largest square from the middle of the image
+        const side = Math.min(img.width, img.height);
+        const sx = Math.floor((img.width - side) / 2);
+        const sy = Math.floor((img.height - side) / 2);
+
         const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        canvas.width = size;
+        canvas.height = size;
+        canvas.getContext("2d").drawImage(img, sx, sy, side, side, 0, 0, size, size);
         resolve(canvas.toDataURL("image/jpeg", quality));
       };
       img.src = e.target.result;
