@@ -110,7 +110,8 @@ public final class VibeServer {
             } else {
                 trackId = parseLong(body.get("trackId"), 0L);
             }
-            Map<String, Object> post = database.createPost(userId, trackId, body.get("mood"), body.get("caption"));
+            long playlistId = parseLong(body.get("playlistId"), 0L);
+            Map<String, Object> post = database.createPost(userId, trackId, body.get("mood"), body.get("caption"), playlistId);
             sendJson(exchange, 201, Json.object("post", post));
             return;
         }
