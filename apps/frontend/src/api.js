@@ -584,6 +584,7 @@ export async function removeTrackFromPlaylist(token, playlistId, trackId) {
     if (playlist) {
       playlist.tracks = playlist.tracks.filter((t) => t.id !== Number(trackId));
       playlist.trackCount = playlist.tracks.length;
+      playlist.coverUrl = playlist.tracks[0]?.coverUrl || "";
       saveLocalState(state);
       return { playlist };
     }
