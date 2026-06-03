@@ -135,10 +135,17 @@ export default function App() {
   const [globalLoading, setGlobalLoading] = useState(!!savedSession);
   const skipNextRefreshRef = useRef(false);
 
-  useEffect(() => {
+ useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const oauthError = params.get("error");
+    const playlistParam = params.get("playlist");
+
+    if (playlistParam) {
+      window.history.replaceState({}, "", window.location.pathname);
+      setSharedPlaylistKey(playlistParam);
+    }
+
     if (oauthError || code) {
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -461,7 +468,16 @@ export default function App() {
       : view === "search" ? "Search"
       : "Home feed";
 
-  return (
+ if (sharedPlaylistKey) {
+    return (
+      <SharedPlaylistView
+        shareKey={sharedPlaylistKey}
+        onClose={() => setSharedPlaylistKey(null)}
+      />
+    );
+  }
+
+return (
     <div className="app-shell">
       <Sidebar
   view={view}
