@@ -550,20 +550,21 @@ export async function createPlaylist(token, { title, description, isPublic }) {
   }
 }
 
-export async function addTrackToPlaylist(token, playlistId, trackId) {
+export async function addTrackToPlaylist(token, playlistId, trackPayload) {
   try {
     return await request(`/playlists/${playlistId}/tracks`, {
       method: "POST",
       token,
-      body: { trackId },
+      body: typeof trackPayload === "object" ? trackPayload : { trackId: trackPayload },
     });
   } catch {
     const state = loadLocalState();
     if (!state.playlists) state.playlists = [];
     const playlist = state.playlists.find((p) => p.id === Number(playlistId));
     if (playlist) {
+      const resolvedId = typeof trackPayload === "object" ? trackPayload.trackId : trackPayload;
       const track =
-        state.tracks.find((t) => t.id === Number(trackId)) || state.tracks[0];
+        state.tracks.find((t) => t.id === Number(resolvedId)) || state.tracks[0];
       if (track && !playlist.tracks.find((t) => t.id === track.id)) {
         playlist.tracks.push(track);
         playlist.trackCount = playlist.tracks.length;
