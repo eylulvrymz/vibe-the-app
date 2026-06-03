@@ -331,10 +331,15 @@ export async function createPost(token, payload, currentUser) {
     } else {
       track = null;
     }
+    const playlist = payload.playlistId
+      ? (state.playlists || []).find((p) => p.id === Number(payload.playlistId)) || null
+      : null;
     const post = {
       id: Math.max(...state.posts.map((item) => item.id)) + 1,
       user,
       track,
+      playlist,
+      playlistId: payload.playlistId || null,
       mood: payload.mood || "Fresh",
       caption: payload.caption || "",
       createdAt: new Date().toISOString(),
