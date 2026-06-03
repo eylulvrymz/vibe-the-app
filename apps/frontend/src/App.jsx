@@ -2284,7 +2284,6 @@ function PlaylistsView({
 }
 
 function PlaylistCard({
-  const [showSharePopup, setShowSharePopup] = useState(false);
   playlist,
   currentUser,
   isOwnProfile,
@@ -2307,6 +2306,7 @@ function PlaylistCard({
   spotifyToken,
   onPostPlaylist
 }) {
+  const [showSharePopup, setShowSharePopup] = useState(false);
   const isOwner = currentUser && playlist.user && playlist.user.id === currentUser.id;
   const tracks = playlist.tracks || [];
 
