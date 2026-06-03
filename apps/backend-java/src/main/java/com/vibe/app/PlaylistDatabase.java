@@ -111,7 +111,20 @@ public final class PlaylistDatabase {
         st.setLong(1, playlistId);
         st.setLong(2, trackId);
         st.executeUpdate();
+        updateCoverUrl(conn, playlistId);
         return getPlaylist(conn, playlistId, userId);
+    }
+    //update cover url helper
+    private static void updateCoverUrl(Connection conn, long playlistId) throws SQLException {
+        PreparedStatement st = conn.prepareStatement(
+            "UPDATE playlists SET cover_url = COALESCE((" +
+            "  SELECT t.cover_url FROM playlist_tracks pt JOIN tracks t ON t.id = pt.track_id" +
+            "  WHERE pt.playlist_id = ? ORDER BY pt.position LIMIT 1" +
+            "), '') WHERE id = ?"
+        );
+        st.setLong(1, playlistId);
+        st.setLong(2, playlistId);
+        st.executeUpdate();
     }
 
     // ── Like playlist ─────────────────────────────────────────────────────────
