@@ -2412,8 +2412,14 @@ function PlaylistCard({
                   </a>
                 )}
                 {isOwner && isOwnProfile && (
-                  <button className="pl-remove-btn" onClick={() => onRemoveTrack(t.id)}>
+                  <button
+                    className="pl-remove-btn"
+                    onClick={() => onRemoveTrack(t.id)}
+                    title={`Remove ${t.title} from playlist`}
+                    aria-label={`Remove ${t.title} from playlist`}
+                  >
                     <X size={14} />
+                    <span>Remove</span>
                   </button>
                 )}
               </div>
