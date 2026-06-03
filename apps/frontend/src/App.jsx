@@ -2449,4 +2449,63 @@ function PlaylistCard({
     </div>
   );
 }
-      
+function SharedPlaylistView({ shareKey, onClose }) {
+  const [playlist, setPlaylist] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getPlaylistByShareKey(shareKey).then((data) => {
+      setPlaylist(data.playlist);
+      setLoading(false);
+    });
+  }, [shareKey]);
+
+  if (loading) return <div className="shared-pl-loading">Loading playlist…</div>;
+  if (!playlist) return (
+    <div className="shared-pl-not-found">
+      <ListMusic size={36} />
+      <p>Playlist not found or is private.</p>
+      <button onClick={onClose}>Go back</button>
+    </div>
+  );
+
+  return (
+    <div className="shared-pl-view">
+      <button className="back-btn" onClick={onClose}>
+        <ArrowLeft size={18} /> Back
+      </button>
+      <div className="shared-pl-hero">
+        {playlist.coverUrl ? (
+          <img src={playlist.coverUrl} alt="" className="shared-pl-cover" />
+        ) : (
+          <div className="shared-pl-cover-empty"><ListMusic size={48} /></div>
+        )}
+        <div>
+          <p className="eyebrow">Shared playlist</p>
+          <h1>{playlist.title}</h1>
+          {playlist.description && <p>{playlist.description}</p>}
+          <p className="playlist-meta-row">
+            by @{playlist.user.username} · {playlist.trackCount} tracks · {playlist.likeCount} likes
+          </p>
+        </div>
+      </div>
+      <div className="playlist-tracklist">
+        {playlist.tracks.map((track, i) => (
+          <div className="pl-track-row" key={track.id}>
+            <span className="pl-track-num">{i + 1}</span>
+            <img src={track.coverUrl} alt="" />
+            <div className="pl-track-info">
+              <strong>{track.title}</strong>
+              <span>{track.artist}</span>
+            </div>
+            {track.spotifyId && (
+              <a className="pl-spotify-link" href={`https://open.spotify.com/track/${track.spotifyId}`} target="_blank" rel="noreferrer">
+                Spotify ↗
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}      
