@@ -1792,6 +1792,13 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
   const [usernameInput, setUsernameInput] = useState("");
   const [usernameError, setUsernameError] = useState("");
   const [savingUsername, setSavingUsername] = useState(false);
+  const [profilePlaylists, setProfilePlaylists] = useState([]);
+  useEffect(() => {
+    if (!profile) return;
+    getPlaylists(token, profile.id).then((data) => {
+      setProfilePlaylists(data.playlists || []);
+    });
+  }, [profile?.id]);
 
   async function handlePhotoChange(e) {
     const file = e.target.files?.[0];
@@ -1941,6 +1948,29 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
           <RelationshipList users={profile.followingUsers || []} onNavigate={onNavigate} />
         </Panel>
       </div>
+
+      {profilePlaylists.length > 0 && (
+      <div className="profile-playlists-section">
+        <h3 className="profile-section-title">
+          <ListMusic size={16} /> Playlists
+        </h3>
+        <div className="profile-playlist-row">
+          {profilePlaylists.map((pl) => (
+        <div key={pl.id} className="profile-playlist-mini">
+          <div className="profile-playlist-mini-cover">
+            {pl.coverUrl ? (
+              <img src={pl.coverUrl} alt="" />
+        ) : (
+          <div className="profile-playlist-mini-empty"><ListMusic size={20} /></div>
+        )}
+          </div>
+          <div className="profile-playlist-mini-title">{pl.title}</div>
+          <div className="profile-playlist-mini-meta">{pl.trackCount} tracks</div>
+        </div>
+      ))}
+        </div>
+      </div>
+    )}
 
       <div className="post-list">
         {(profile.posts || []).map((post) => (
@@ -2168,9 +2198,15 @@ function PlaylistsView({
     setPickerQuery("");
     setSpotifyResults([]);
   }
-
   async function handleAddLocalTrack(playlistId, track) {
-    await onAddTrack(playlistId, track.id);
+    await onAddTrack(playlistId, {
+      trackId: track.id,
+      spotifyTitle: track.title,
+      spotifyArtist: track.artist,
+      spotifyAlbum: track.album || "",
+      spotifyCoverUrl: track.coverUrl || "",
+      spotifyPreviewUrl: track.previewUrl || "",
+    });
     setShowPickerId(null);
   }
 
@@ -2307,6 +2343,17 @@ function PlaylistCard({
   onPostPlaylist
 }) {
   const [showSharePopup, setShowSharePopup] = useState(false);
+  const sharePopupRef = useRef(null);
+  useEffect(() => {
+    if (!showSharePopup) return;
+    function handleClickOutside(e) {
+      if (sharePopupRef.current && !sharePopupRef.current.contains(e.target)) {
+        setShowSharePopup(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showSharePopup]);
   const isOwner = currentUser && playlist.user && playlist.user.id === currentUser.id;
   const tracks = playlist.tracks || [];
 
@@ -2379,7 +2426,7 @@ function PlaylistCard({
           </button>
 
           {playlist.isPublic && (
-      <div className="share-popup-wrap">
+      <div className="share-popup-wrap" ref={sharePopupRef}>
         <button
           className="pl-action-btn"
           onClick={() => setShowSharePopup((v) => !v)}
