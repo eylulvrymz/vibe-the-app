@@ -135,11 +135,14 @@ export default function App() {
   const [globalLoading, setGlobalLoading] = useState(!!savedSession);
   const skipNextRefreshRef = useRef(false);
 
- useEffect(() => {
+useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const oauthError = params.get("error");
-    const playlistParam = params.get("share");
+
+    const hash = window.location.hash;
+    const shareMatch = hash.match(/^#share=([a-zA-Z0-9]+)$/);
+    const playlistParam = shareMatch ? shareMatch[1] : null;
 
     if (playlistParam) {
       window.history.replaceState({}, "", window.location.pathname);
@@ -2130,7 +2133,7 @@ function PlaylistsView({
 
   async function handleCopyShareLink(playlist) {
     const base = window.location.origin + window.location.pathname;
-    const url = `${base}?share=${playlist.shareKey}`;
+    const url = `${base}#share=${playlist.shareKey}`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
