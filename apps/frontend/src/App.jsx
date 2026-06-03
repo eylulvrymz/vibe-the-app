@@ -139,7 +139,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const oauthError = params.get("error");
-    const playlistParam = params.get("playlist");
+    const playlistParam = params.get("share");
 
     if (playlistParam) {
       window.history.replaceState({}, "", window.location.pathname);
