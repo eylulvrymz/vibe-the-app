@@ -84,24 +84,29 @@ public final class Database {
         return posts("WHERE p.track_id IS NOT NULL ORDER BY like_count DESC, p.created_at DESC, p.id DESC", currentUserId, 10);
     }
 
-    public synchronized Map<String, Object> createPost(long userId, long trackId, String mood, String caption) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement(
-            "INSERT INTO posts (user_id, track_id, mood, caption) VALUES (?, ?, ?, ?)",
-            Statement.RETURN_GENERATED_KEYS
-        );
-        statement.setLong(1, userId);
-        if (trackId > 0) {
-            statement.setLong(2, trackId);
-        } else {
-            statement.setNull(2, java.sql.Types.INTEGER);
-        }
-        statement.setString(3, safe(mood, "Fresh"));
-        statement.setString(4, safe(caption, ""));
-        statement.executeUpdate();
-        ResultSet keys = statement.getGeneratedKeys();
-        long id = keys.next() ? keys.getLong(1) : 0L;
-        return postById(id, userId);
+    public synchronized Map<String, Object> createPost(long userId, long trackId, String mood, String caption, long playlistId) throws SQLException {
+    PreparedStatement statement = connection.prepareStatement(
+        "INSERT INTO posts (user_id, track_id, mood, caption, playlist_id) VALUES (?, ?, ?, ?, ?)",
+        Statement.RETURN_GENERATED_KEYS
+    );
+    statement.setLong(1, userId);
+    if (trackId > 0) {
+        statement.setLong(2, trackId);
+    } else {
+        statement.setNull(2, java.sql.Types.INTEGER);
     }
+    statement.setString(3, safe(mood, "Fresh"));
+    statement.setString(4, safe(caption, ""));
+    if (playlistId > 0) {
+        statement.setLong(5, playlistId);
+    } else {
+        statement.setNull(5, java.sql.Types.INTEGER);
+    }
+    statement.executeUpdate();
+    ResultSet keys = statement.getGeneratedKeys();
+    long id = keys.next() ? keys.getLong(1) : 0L;
+    return postById(id, userId);
+}
 
     public synchronized Map<String, Object> likePost(long userId, long postId) throws SQLException {
         if (scalar("SELECT COUNT(*) FROM likes WHERE user_id = ? AND post_id = ?", userId, postId) > 0) {
@@ -468,6 +473,17 @@ public final class Database {
             post.put("track", track);
         }
         post.put("commentCount", scalar("SELECT COUNT(*) FROM comments WHERE post_id = ?", rs.getLong("id")));
+        try {
+            long plId = rs.getLong("playlist_id");
+            if (!rs.wasNull()) {
+                post.put("playlistId", plId);
+                post.put("playlist", PlaylistDatabase.getPlaylist(connection, plId, 0L));
+            } else {
+                post.put("playlist", null);
+            }
+        } catch (SQLException ignored) {
+            post.put("playlist", null);
+        }
 
         return post;
     }
@@ -601,6 +617,7 @@ public final class Database {
         try { connection.createStatement().execute("ALTER TABLE tracks ADD COLUMN preview_url TEXT"); } catch (SQLException ignored) {}
         try { connection.createStatement().execute("ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)"); } catch (SQLException ignored) {}
         try { connection.createStatement().execute("ALTER TABLE users ADD COLUMN photo_url TEXT"); } catch (SQLException ignored) {}
+        try { connection.createStatement().execute("ALTER TABLE posts ADD COLUMN playlist_id INTEGER REFERENCES playlists(id) ON DELETE SET NULL"); } catch (SQLException ignored) {}
         // Migration: older schema declared posts.track_id NOT NULL, which blocks track-less posts.
         // Rebuild the table with a nullable track_id when needed.
         try {
