@@ -385,8 +385,16 @@ useEffect(() => {
     setPlaylists((prev) => prev.map((p) => p.id === playlistId ? data.playlist : p));
   }
 }
+  async function handlePostPlaylist(playlist) {
+  const data = await createPost(session.token, {
+    playlistId: playlist.id,
+    mood: "Playlist",
+    caption: `Check out my playlist: ${playlist.title}`,
+  }, session.user);
+  setPosts((current) => [data.post, ...current]);
+  setView("feed");
+}
  
-  
   async function handleDeletePost(postId) {
     await deletePost(session.token, postId);
     setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -562,6 +570,7 @@ return (
             tracks={tracks}
             isOwnProfile={true}
             spotifyToken={session.spotifyToken}
+            onPostPlaylist={handlePostPlaylist}
           />
         ) : (
       
@@ -1463,6 +1472,39 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
           </>
         )}
         <p className="post-caption">{post.caption}</p>
+        {post.playlist && (
+      <div className="post-playlist-card">
+        <div className="post-playlist-cover">
+          {post.playlist.coverUrl ? (
+        <img src={post.playlist.coverUrl} alt="" />
+      ) : (
+        <div className="post-playlist-cover-empty"><ListMusic size={20} /></div>
+      )}
+        </div>
+        <div className="post-playlist-info">
+          <div className="post-playlist-title">{post.playlist.title}</div>
+          <div className="post-playlist-meta">{post.playlist.trackCount} tracks · {post.playlist.likeCount} likes</div>
+          <div className="post-playlist-tracks">
+            {(post.playlist.tracks || []).slice(0, 3).map((t, i) => (
+        <div key={t.id} className="post-playlist-track-row">
+          <span className="post-playlist-track-num">{i + 1}</span>
+          <img src={t.coverUrl} alt="" />
+          <div>
+            <strong>{t.title}</strong>
+            <span>{t.artist}</span>
+          </div>
+          {t.spotifyId && (
+          <a href={`https://open.spotify.com/track/${t.spotifyId}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="pl-spotify-link">↗</a>
+        )}
+        </div>
+      ))}
+            {(post.playlist.tracks || []).length > 3 && (
+        <div className="post-playlist-more">+{post.playlist.tracks.length - 3} more tracks</div>
+      )}
+          </div>
+        </div>
+      </div>
+    )}
 
         {/* Spotify embed */}
         {showEmbed && spotifyId && (
@@ -2076,6 +2118,7 @@ function PlaylistsView({
   tracks,
   isOwnProfile,
   spotifyToken,
+  onPostPlaylist,
 }) {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", isPublic: true });
@@ -2190,6 +2233,7 @@ function PlaylistsView({
               onAddSpotifyTrack={(track) => handleAddSpotifyTrack(pl.id, track)}
               onAddLocalTrack={(track) => handleAddLocalTrack(pl.id, track)}
               spotifyToken={spotifyToken}
+              onPostPlaylist={() => onPostPlaylist(pl)}
             />
           ))}
         </div>
@@ -2240,6 +2284,7 @@ function PlaylistsView({
 }
 
 function PlaylistCard({
+  const [showSharePopup, setShowSharePopup] = useState(false);
   playlist,
   currentUser,
   isOwnProfile,
@@ -2260,6 +2305,7 @@ function PlaylistCard({
   onAddSpotifyTrack,
   onAddLocalTrack,
   spotifyToken,
+  onPostPlaylist
 }) {
   const isOwner = currentUser && playlist.user && playlist.user.id === currentUser.id;
   const tracks = playlist.tracks || [];
@@ -2333,11 +2379,27 @@ function PlaylistCard({
           </button>
 
           {playlist.isPublic && (
-            <button className="pl-action-btn" onClick={onShare} title="Copy share link">
-              <Share2 size={14} /> Share
-            </button>
-          )}
+      <div className="share-popup-wrap">
+        <button
+          className="pl-action-btn"
+          onClick={() => setShowSharePopup((v) => !v)}
+          >
+          <Share2 size={14} /> Share
+        </button>
+        {showSharePopup && (
+        <div className="share-popup">
+          <button className="share-popup-btn" onClick={() => { onShare(); setShowSharePopup(false); }}>
+            📋 Copy link
+          </button>
+          <button className="share-popup-btn" onClick={() => { onPostPlaylist(); setShowSharePopup(false); }}>
+            📮 Post to feed
+          </button>
+        </div>
+      )}
+      </div>
+    )}
 
+        
           {isOwner && isOwnProfile && (
             <>
               <button className="pl-action-btn" onClick={onTogglePicker}>
