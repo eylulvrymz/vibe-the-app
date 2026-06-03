@@ -3460,3 +3460,232 @@ html:has(.new-auth-shell) { overflow: auto; height: auto; }
     height: 100px;
   }
 }
+/* ── Share popup ──────────────────────────────────────────────────── */
+
+.share-popup-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.share-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: #121a23;
+  border: 1px solid #2b3846;
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 50;
+  min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.share-popup-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: #d8e3ec;
+  background: transparent;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.share-popup-btn:hover {
+  background: #1b2530;
+  color: #2dd4bf;
+}
+
+/* ── Playlist post card (inside feed) ────────────────────────────── */
+
+.post-playlist-card {
+  margin-top: 12px;
+  background: #0d131a;
+  border: 1px solid #26313d;
+  border-radius: 10px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 80px 1fr;
+}
+
+.post-playlist-cover {
+  width: 80px;
+  height: 100%;
+  min-height: 80px;
+  background: #1b2530;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.post-playlist-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.post-playlist-cover-empty {
+  width: 100%;
+  height: 100%;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3a4f60;
+}
+
+.post-playlist-info {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.post-playlist-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f7fbff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-playlist-meta {
+  font-size: 11px;
+  color: #9fb0bf;
+}
+
+.post-playlist-tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.post-playlist-track-row {
+  display: grid;
+  grid-template-columns: 18px 28px 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.post-playlist-track-num {
+  font-size: 11px;
+  color: #9fb0bf;
+  text-align: right;
+}
+
+.post-playlist-track-row img {
+  width: 28px;
+  height: 28px;
+  border-radius: 3px;
+  object-fit: cover;
+  display: block;
+  background: #26313d;
+}
+
+.post-playlist-track-row strong {
+  display: block;
+  font-size: 12px;
+  color: #edf3f8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-playlist-track-row span {
+  display: block;
+  font-size: 11px;
+  color: #9fb0bf;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-playlist-more {
+  font-size: 11px;
+  color: #9fb0bf;
+  padding: 2px 0 0 24px;
+  font-style: italic;
+}
+
+/* ── Playlists on profile ─────────────────────────────────────────── */
+
+.profile-playlists-section {
+  margin-bottom: 8px;
+}
+
+.profile-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #d8e3ec;
+}
+
+.profile-playlist-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.profile-playlist-mini {
+  background: #121a23;
+  border: 1px solid #26313d;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.profile-playlist-mini:hover {
+  border-color: #2dd4bf44;
+}
+
+.profile-playlist-mini-cover {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #1b2530;
+  overflow: hidden;
+}
+
+.profile-playlist-mini-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-playlist-mini-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3a4f60;
+}
+
+.profile-playlist-mini-title {
+  padding: 8px 10px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f7fbff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-playlist-mini-meta {
+  padding: 0 10px 8px;
+  font-size: 11px;
+  color: #9fb0bf;
+}
