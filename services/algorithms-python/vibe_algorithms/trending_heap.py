@@ -85,29 +85,38 @@ class TrendingHeap:
         self.heap[left], self.heap[right] = self.heap[right], self.heap[left]
 
     def _heapify_up(self, index: int) -> None:
-        while index > 0:
-            parent = (index - 1) // 2
-            if self.heap[index].likes <= self.heap[parent].likes:
-                return
-            self._swap(index, parent)
-            index = parent
+       while index > 0:
+                   parent = (index - 1) // 2
+                   child_entry = self.heap[index]
+                   parent_entry = self.heap[parent]
+                   if child_entry.likes < parent_entry.likes:
+                       return
+                   if child_entry.likes == parent_entry.likes:
+                       if child_entry.timestamp <= parent_entry.timestamp:
+                           return
+                   self._swap(index, parent)
+                   index = parent
 
     def _heapify_down(self, index: int) -> None:
-        size = len(self.heap)
-        while True:
-            largest = index
-            left = index * 2 + 1
-            right = index * 2 + 2
+          size = len(self.heap)
+          while True:
+              largest = index
+              left = index * 2 + 1
+              right = index * 2 + 2
 
-            if left < size and self.heap[left].likes > self.heap[largest].likes:
-                largest = left
-            if right < size and self.heap[right].likes > self.heap[largest].likes:
-                largest = right
-            if largest == index:
-                return
-            self._swap(index, largest)
-            index = largest
+              def beats(a: int, b: int) -> bool:
+                  if self.heap[a].likes != self.heap[b].likes:
+                      return self.heap[a].likes > self.heap[b].likes
+                  return self.heap[a].timestamp > self.heap[b].timestamp
 
+              if left < size and beats(left, largest):
+                  largest = left
+              if right < size and beats(right, largest):
+                  largest = right
+              if largest == index:
+                  return
+              self._swap(index, largest)
+              index = largest
 
 def rank_posts(posts: Iterable[Tuple[int, int, float]], limit: int = 5) -> List[dict]:
     heap = TrendingHeap()

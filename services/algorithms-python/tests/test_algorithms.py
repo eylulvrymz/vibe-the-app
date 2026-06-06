@@ -25,6 +25,16 @@ class FriendSuggestionTests(unittest.TestCase):
 
         self.assertEqual(suggest_from_edges(users, follows, user_id=1), [(4, 2), (5, 1)])
 
+    def test_no_suggestions_for_isolated_user(self):
+        users = [(1, "luna"), (2, "mika")]
+        follows = []
+        self.assertEqual(suggest_from_edges(users, follows, user_id=1), [])
+
+    def test_suggest_limit(self):
+        users = [(1, "luna"), (2, "a"), (3, "b"), (4, "c"), (5, "d"), (6, "e")]
+        follows = [(1, 2), (1, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)]
+        result = suggest_from_edges(users, follows, user_id=1, limit=2)
+        self.assertEqual(len(result), 2)
 
 class TrendingHeapTests(unittest.TestCase):
     def test_top_k_preserves_heap(self):
@@ -50,6 +60,15 @@ class TrendingHeapTests(unittest.TestCase):
         ranked = rank_posts([(10, 4, 1.0), (11, 99, 2.0), (12, 44, 3.0)], limit=2)
         self.assertEqual([item["post_id"] for item in ranked], [11, 12])
 
+    def test_trending_timestamp_tiebreak(self):
+        heap = TrendingHeap()
+        heap.push(1, 50, 1.0)
+        heap.push(2, 50, 2.0)
+        self.assertEqual(heap.peek_max()["post_id"], 2)
+        self.assertTrue(heap.is_valid_heap())
 
+    def test_rank_posts_timestamp_tiebreak(self):
+        ranked = rank_posts([(1, 10, 1.0), (2, 10, 3.0), (3, 10, 2.0)], limit=3)
+        self.assertEqual([r["post_id"] for r in ranked], [2, 3, 1])
 if __name__ == "__main__":
     unittest.main()
