@@ -1282,10 +1282,9 @@ button {
   }
 
   .app-shell {
-    flex-direction: column-reverse;
+    display: block;
     height: auto;
     min-height: 100vh;
-    overflow: visible;
   }
 
   .sidebar {
