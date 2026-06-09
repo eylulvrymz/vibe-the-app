@@ -330,7 +330,7 @@ useEffect(() => {
       setProfile((current) =>
         current ? { ...current, posts: applyOptimistic(current.posts || []) } : current
       );
-      setStatus("Beğeni kaydedilemedi: " + (err?.message || "bilinmeyen hata"));
+      setStatus("Couldn't save like: " + (err?.message || "unknown error"));
       setTimeout(() => setStatus(""), 3000);
     }
   }
@@ -1284,16 +1284,18 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
 function suggestionReason(u) {
   const likes = u.sharedLikes || 0;
   const follows = u.sharedFollows || 0;
+  const likeLabel = (n) => `${n} shared like${n === 1 ? "" : "s"}`;
+  const followLabel = (n) => `${n} mutual follow${n === 1 ? "" : "s"}`;
   if (likes > 0 && follows > 0) {
-    return `${likes} ortak beğeni · ${follows} ortak takip`;
+    return `${likeLabel(likes)} · ${followLabel(follows)}`;
   }
   if (likes > 0) {
-    return `${likes} ortak beğeni`;
+    return likeLabel(likes);
   }
   if (follows > 0) {
-    return `${follows} ortak takip`;
+    return followLabel(follows);
   }
-  return "Takip ağından öneriliyor";
+  return "From your follow network";
 }
 
 function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendingTrack }) {
