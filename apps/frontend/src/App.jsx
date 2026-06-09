@@ -560,21 +560,21 @@ return (
             onUpdateUsername={handleUpdateUsername}
             onOpenPlaylist={(key) => setSharedPlaylistKey(key)}
           />
-      ) : view === "search" ? (
-          ) : view === "search" ? (
-          <SearchView
-            results={results}
-            posts={posts}
-            onFollow={handleFollow}
-            onUnfollow={handleUnfollow}
-            onNavigate={openProfile}
-            onPostWithTrack={handlePostWithTrack}
-            onLike={handleLike}
-            onOpenPost={handleOpenPost}
-            currentUser={session.user}
-            token={session.token}
-            onOpenPlaylist={(key) => setSharedPlaylistKey(key)}
-          />
+    ) : view === "search" ? (
+      <SearchView
+        results={results}
+        posts={posts}
+        onFollow={handleFollow}
+        onUnfollow={handleUnfollow}
+        onNavigate={openProfile}
+        onPostWithTrack={handlePostWithTrack}
+        onLike={handleLike}
+        onOpenPost={handleOpenPost}
+        currentUser={session.user}
+        token={session.token}
+        onOpenPlaylist={(key) => setSharedPlaylistKey(key)}
+        />
+      
         ) : view === "playlists" ? (
           <PlaylistsView
             playlists={playlists}
