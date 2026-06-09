@@ -401,7 +401,19 @@ useEffect(() => {
     setTrending((prev) => prev.filter((p) => p.id !== postId));
   }
 
+  // Flip isFollowing for a user inside the search results so the People panel
+  // shows the right follow/unfollow icon immediately.
+  function patchResultsFollowing(userId, isFollowing) {
+    setResults((prev) => ({
+      ...prev,
+      users: (prev.users || []).map((u) =>
+        u.id === userId ? { ...u, isFollowing } : u
+      ),
+    }));
+  }
+
   async function handleFollow(userId) {
+    patchResultsFollowing(userId, true);
     await followUser(session.token, userId, session.user);
     const [suggestionData, profileData] = await Promise.all([
       getSuggestions(session.token),
@@ -412,6 +424,7 @@ useEffect(() => {
   }
 
   async function handleUnfollow(userId) {
+    patchResultsFollowing(userId, false);
     await unfollowUser(session.token, userId, session.user);
     const [suggestionData, profileData] = await Promise.all([
       getSuggestions(session.token),
@@ -2064,8 +2077,8 @@ function SearchView({ results, posts, onFollow, onUnfollow, onNavigate, onPostWi
                 <span style={{ color: "var(--vibe-faint)", fontSize: "11.5px" }}>@{u.username}</span>
               </button>
               {u.isFollowing ? (
-                <button className="unfollow-btn" onClick={() => onUnfollow(u.id)} title="Unfollow" style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--vibe-faint)" }}>
-                  <Users size={15} />
+                <button className="unfollow-btn" onClick={() => onUnfollow(u.id)} title="Following — click to unfollow" style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--vibe-teal)" }}>
+                  <Check size={15} />
                 </button>
               ) : (
                 <button onClick={() => onFollow(u.id)} title="Follow">
