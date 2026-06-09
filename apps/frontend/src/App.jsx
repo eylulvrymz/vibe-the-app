@@ -389,12 +389,13 @@ useEffect(() => {
   const data = await createPost(session.token, {
     playlistId: playlist.id,
     mood: "Playlist",
-    caption: `Check out my playlist: ${playlist.title}`,
+    caption: `🎵 Check out my playlist — ${playlist.title}`,
   }, session.user);
   setPosts((current) => [data.post, ...current]);
   setView("feed");
+  setStatus("Playlist posted to your feed!");
+  setTimeout(() => setStatus(""), 3000);
 }
- 
   async function handleDeletePost(postId) {
     await deletePost(session.token, postId);
     setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -557,20 +558,23 @@ return (
             onOpenPost={handleOpenPost}
             onUpdatePhoto={handleUpdatePhoto}
             onUpdateUsername={handleUpdateUsername}
+            onOpenPlaylist={(key) => setSharedPlaylistKey(key)}
           />
-      ) : view === "search" ? (
-          <SearchView
-            results={results}
-            posts={posts}
-            onFollow={handleFollow}
-            onUnfollow={handleUnfollow}
-            onNavigate={openProfile}
-            onPostWithTrack={handlePostWithTrack}
-            onLike={handleLike}
-            onOpenPost={handleOpenPost}
-            currentUser={session.user}
-            token={session.token}
-          />
+    ) : view === "search" ? (
+      <SearchView
+        results={results}
+        posts={posts}
+        onFollow={handleFollow}
+        onUnfollow={handleUnfollow}
+        onNavigate={openProfile}
+        onPostWithTrack={handlePostWithTrack}
+        onLike={handleLike}
+        onOpenPost={handleOpenPost}
+        currentUser={session.user}
+        token={session.token}
+        onOpenPlaylist={(key) => setSharedPlaylistKey(key)}
+        />
+      
         ) : view === "playlists" ? (
           <PlaylistsView
             playlists={playlists}
@@ -607,6 +611,7 @@ return (
             onOpenPost={handleOpenPost}
             pendingTrackId={pendingTrackId}
             onClearPendingTrack={() => setPendingTrackId("")}
+            onOpenPlaylist={(key) => setSharedPlaylistKey(key)}
           />
         )}
       </main>
@@ -1238,7 +1243,7 @@ function Sidebar({ view, setView, user, onLogout, onOwnProfile, onOpenPlaylists 
   );
 }
 
-function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId, token, currentUser, onDelete, onOpenPost, pendingTrackId, onClearPendingTrack }) {
+function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId, token, currentUser, onDelete, onOpenPost, pendingTrackId, onClearPendingTrack, onOpenPlaylist }) {
   return (
     <div className="content-grid">
       <section className="feed-column">
@@ -1257,6 +1262,7 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
               currentUser={currentUser}
               onDelete={onDelete}
               onOpenPost={onOpenPost}
+              onOpenPlaylist={onOpenPlaylist}
             />
           ))}
         </div>
@@ -1463,7 +1469,7 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
   );
 }
 
-function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSpotifyId, token, currentUser, onDelete }) {
+function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSpotifyId, token, currentUser, onDelete, onOpenPlaylist }) {
   const spotifyId = post.track?.spotifyId;
   const [showEmbed, setShowEmbed] = useState(false);
   const isPostOwner = currentUser && post.user.id === currentUser.id;
@@ -1508,7 +1514,19 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
         )}
         <p className="post-caption">{post.caption}</p>
         {post.playlist && (
-      <div className="post-playlist-card">
+      <div
+        className="post-playlist-card"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (post.playlist.shareKey && onOpenPlaylist) {
+            onOpenPlaylist(post.playlist.shareKey);
+          } else {
+            onNavigate(post.playlist.user.id);
+          }
+        }}
+        title="View playlist"
+        style={{ cursor: "pointer" }}
+        >
         <div className="post-playlist-cover">
           {post.playlist.coverUrl ? (
         <img src={post.playlist.coverUrl} alt="" />
@@ -1820,7 +1838,7 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
   );
 }
 
-function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete, onOpenPost, onUpdatePhoto, onUpdateUsername }) {
+function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete, onOpenPost, onUpdatePhoto, onUpdateUsername, onOpenPlaylist }) {
   const photoInputRef = useRef(null);
   const usernameInputRef = useRef(null);
   const [editingUsername, setEditingUsername] = useState(false);
@@ -2009,7 +2027,7 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
 
       <div className="post-list">
         {(profile.posts || []).map((post) => (
-          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} token={token} currentUser={currentUser} onDelete={onDelete} onOpenPost={onOpenPost} />
+          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} token={token} currentUser={currentUser} onDelete={onDelete} onOpenPost={onOpenPost} onOpenPlaylist={onOpenPlaylist} />
         ))}
       </div>
     </div>
@@ -2031,7 +2049,7 @@ function RelationshipList({ users, onNavigate }) {
   ));
 }
 
-function SearchView({ results, posts, onFollow, onUnfollow, onNavigate, onPostWithTrack, onLike, onOpenPost, currentUser, token }) {
+function SearchView({ results, posts, onFollow, onUnfollow, onNavigate, onPostWithTrack, onLike, onOpenPost, currentUser, token, onOpenPlaylist }) {
   // Posts in the current feed that match any of the found tracks
   const matchedPosts = useMemo(() => {
     if (!results.tracks.length || !posts.length) return [];
@@ -2107,6 +2125,7 @@ function SearchView({ results, posts, onFollow, onUnfollow, onNavigate, onPostWi
                 token={token}
                 currentUser={currentUser}
                 onDelete={null}
+                onOpenPlaylist={onOpenPlaylist}
               />
             ))}
           </div>
