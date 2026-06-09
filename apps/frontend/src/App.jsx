@@ -558,8 +558,10 @@ return (
             onOpenPost={handleOpenPost}
             onUpdatePhoto={handleUpdatePhoto}
             onUpdateUsername={handleUpdateUsername}
+            onOpenPlaylist={(key) => setSharedPlaylistKey(key)}
           />
       ) : view === "search" ? (
+          ) : view === "search" ? (
           <SearchView
             results={results}
             posts={posts}
@@ -571,6 +573,7 @@ return (
             onOpenPost={handleOpenPost}
             currentUser={session.user}
             token={session.token}
+            onOpenPlaylist={(key) => setSharedPlaylistKey(key)}
           />
         ) : view === "playlists" ? (
           <PlaylistsView
@@ -608,6 +611,7 @@ return (
             onOpenPost={handleOpenPost}
             pendingTrackId={pendingTrackId}
             onClearPendingTrack={() => setPendingTrackId("")}
+            onOpenPlaylist={(key) => setSharedPlaylistKey(key)}
           />
         )}
       </main>
@@ -1834,7 +1838,7 @@ function PostDetailView({ postId, token, currentUser, onBack, onLike, onNavigate
   );
 }
 
-function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete, onOpenPost, onUpdatePhoto, onUpdateUsername }) {
+function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnfollow, onPlay, activeSpotifyId, token, onDelete, onOpenPost, onUpdatePhoto, onUpdateUsername, onOpenPlaylist }) {
   const photoInputRef = useRef(null);
   const usernameInputRef = useRef(null);
   const [editingUsername, setEditingUsername] = useState(false);
@@ -2023,7 +2027,7 @@ function ProfileView({ profile, currentUser, onLike, onNavigate, onFollow, onUnf
 
       <div className="post-list">
         {(profile.posts || []).map((post) => (
-          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} token={token} currentUser={currentUser} onDelete={onDelete} onOpenPost={onOpenPost} />
+          <PostCard key={post.id} post={post} onLike={onLike} onNavigate={onNavigate} onPlay={onPlay} activeSpotifyId={activeSpotifyId} token={token} currentUser={currentUser} onDelete={onDelete} onOpenPost={onOpenPost} onOpenPlaylist={onOpenPlaylist} />
         ))}
       </div>
     </div>
@@ -2045,7 +2049,7 @@ function RelationshipList({ users, onNavigate }) {
   ));
 }
 
-function SearchView({ results, posts, onFollow, onUnfollow, onNavigate, onPostWithTrack, onLike, onOpenPost, currentUser, token }) {
+function SearchView({ results, posts, onFollow, onUnfollow, onNavigate, onPostWithTrack, onLike, onOpenPost, currentUser, token, onOpenPlaylist }) {
   // Posts in the current feed that match any of the found tracks
   const matchedPosts = useMemo(() => {
     if (!results.tracks.length || !posts.length) return [];
@@ -2121,6 +2125,7 @@ function SearchView({ results, posts, onFollow, onUnfollow, onNavigate, onPostWi
                 token={token}
                 currentUser={currentUser}
                 onDelete={null}
+                onOpenPlaylist={onOpenPlaylist}
               />
             ))}
           </div>
