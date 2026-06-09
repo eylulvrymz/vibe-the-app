@@ -178,7 +178,7 @@ public final class Database {
         ResultSet keys = insert.getGeneratedKeys();
         long id = keys.next() ? keys.getLong(1) : 0L;
         PreparedStatement select = connection.prepareStatement(
-            "SELECT c.id, c.content, c.created_at, c.parent_id, u.id AS user_id, u.username, u.display_name, u.avatar_key, " +
+            "SELECT c.id, c.content, c.created_at, c.parent_id, u.id AS user_id, u.username, u.display_name, u.avatar_key, u.photo_url, " +
             "0 AS like_count, 0 AS liked_by_me " +
             "FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?"
         );
@@ -189,7 +189,7 @@ public final class Database {
 
     public synchronized List<Map<String, Object>> getComments(long postId, long currentUserId) throws SQLException {
         PreparedStatement statement = connection.prepareStatement(
-            "SELECT c.id, c.content, c.created_at, c.parent_id, u.id AS user_id, u.username, u.display_name, u.avatar_key, " +
+            "SELECT c.id, c.content, c.created_at, c.parent_id, u.id AS user_id, u.username, u.display_name, u.avatar_key, u.photo_url, " +
             "(SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id) AS like_count, " +
             "(SELECT COUNT(*) FROM comment_likes cl2 WHERE cl2.comment_id = c.id AND cl2.user_id = ?) AS liked_by_me " +
             "FROM comments c JOIN users u ON u.id = c.user_id WHERE c.post_id = ? ORDER BY c.created_at ASC"
@@ -238,6 +238,10 @@ public final class Database {
         user.put("username", rs.getString("username"));
         user.put("displayName", rs.getString("display_name"));
         user.put("avatarKey", rs.getString("avatar_key"));
+        try {
+            String photo = rs.getString("photo_url");
+            user.put("photoUrl", photo == null ? "" : photo);
+        } catch (SQLException ignored) {}
         comment.put("user", user);
         return comment;
     }
