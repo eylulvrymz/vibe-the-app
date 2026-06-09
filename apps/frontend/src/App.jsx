@@ -386,10 +386,16 @@ useEffect(() => {
   }
 }
   async function handlePostPlaylist(playlist) {
+  // Only public playlists can be shared to the feed.
+  if (!playlist.isPublic) {
+    setStatus("Only public playlists can be shared to the feed.");
+    setTimeout(() => setStatus(""), 3000);
+    return;
+  }
   const data = await createPost(session.token, {
     playlistId: playlist.id,
     mood: "Playlist",
-    caption: `🎵 Check out my playlist — ${playlist.title}`,
+    caption: `${session.user.displayName} shared a new playlist!`,
   }, session.user);
   setPosts((current) => [data.post, ...current]);
   setView("feed");

@@ -285,7 +285,10 @@ export async function getTrending(token) {
     if (!OFFLINE_FALLBACK) throw err;
     const state = loadLocalState();
     const current = userFromToken(token, state);
-    const posts = decoratedPosts(state.posts, current, state).sort((left, right) => right.likeCount - left.likeCount);
+    // Mirror the backend: trending only includes track posts, never playlist posts.
+    const posts = decoratedPosts(state.posts, current, state)
+      .filter((post) => post.track)
+      .sort((left, right) => right.likeCount - left.likeCount);
     return { posts };
   }
 }
