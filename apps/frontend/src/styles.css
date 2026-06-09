@@ -1275,6 +1275,12 @@ button {
 }
 
 @media (max-width: 980px) {
+  html, body {
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
   .app-shell {
     flex-direction: column-reverse;
     height: auto;
