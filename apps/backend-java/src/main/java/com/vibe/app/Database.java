@@ -317,24 +317,58 @@ public final class Database {
     }
 
     public synchronized List<Map<String, Object>> suggestions(long userId) throws SQLException {
+        // Collaborative-filtering style "who to follow". We score every candidate
+        // user by combining three signals, then rank by total score:
+        //
+        //   1. Co-liking   (weight 3): people who liked the same posts as me.
+        //                   The strongest taste signal — shared liked posts.
+        //   2. Co-following (weight 2): people who follow the same accounts I do.
+        //                   Similar taste in who they follow => recommend each other.
+        //   3. Friends-of-friends (weight 1): accounts followed by people I follow.
+        //
+        // Each overlapping post/account contributes its weight, so a candidate who
+        // shares many likes and follows with me bubbles to the top. We also surface
+        // *why* they were suggested (shared like / follow counts and genres) so the
+        // UI can show a reason.
         PreparedStatement statement = connection.prepareStatement(
-            "SELECT u.id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, COUNT(*) AS score " +
-            "FROM follows mine " +
-            "JOIN follows bridge ON bridge.follower_id = mine.following_id " +
-            "JOIN users u ON u.id = bridge.following_id " +
-            "WHERE mine.follower_id = ? " +
-            "AND bridge.following_id <> ? " +
-            "AND bridge.following_id NOT IN (SELECT following_id FROM follows WHERE follower_id = ?) " +
-            "GROUP BY u.id ORDER BY score DESC, u.display_name ASC LIMIT 5"
+            "WITH candidate_scores AS ( " +
+            "  SELECT theirlikes.user_id AS uid, 3 AS pts, 1 AS shared_like, 0 AS shared_follow, 0 AS fof " +
+            "  FROM likes mylikes " +
+            "  JOIN likes theirlikes ON theirlikes.post_id = mylikes.post_id " +
+            "  WHERE mylikes.user_id = ? AND theirlikes.user_id <> mylikes.user_id " +
+            "  UNION ALL " +
+            "  SELECT theirs.follower_id AS uid, 2 AS pts, 0, 1, 0 " +
+            "  FROM follows mine " +
+            "  JOIN follows theirs ON theirs.following_id = mine.following_id " +
+            "  WHERE mine.follower_id = ? AND theirs.follower_id <> mine.follower_id " +
+            "  UNION ALL " +
+            "  SELECT bridge.following_id AS uid, 1 AS pts, 0, 0, 1 " +
+            "  FROM follows mine " +
+            "  JOIN follows bridge ON bridge.follower_id = mine.following_id " +
+            "  WHERE mine.follower_id = ? AND bridge.following_id <> mine.follower_id " +
+            ") " +
+            "SELECT u.id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, u.photo_url, " +
+            "       SUM(cs.pts) AS score, " +
+            "       SUM(cs.shared_like) AS shared_likes, " +
+            "       SUM(cs.shared_follow) AS shared_follows " +
+            "FROM candidate_scores cs " +
+            "JOIN users u ON u.id = cs.uid " +
+            "WHERE cs.uid <> ? " +
+            "AND cs.uid NOT IN (SELECT following_id FROM follows WHERE follower_id = ?) " +
+            "GROUP BY u.id ORDER BY score DESC, shared_likes DESC, u.display_name ASC LIMIT 5"
         );
         statement.setLong(1, userId);
         statement.setLong(2, userId);
         statement.setLong(3, userId);
+        statement.setLong(4, userId);
+        statement.setLong(5, userId);
         ResultSet rs = statement.executeQuery();
         List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
         while (rs.next()) {
             Map<String, Object> user = publicUserFromResult(rs);
             user.put("score", rs.getInt("score"));
+            user.put("sharedLikes", rs.getInt("shared_likes"));
+            user.put("sharedFollows", rs.getInt("shared_follows"));
             result.add(user);
         }
 

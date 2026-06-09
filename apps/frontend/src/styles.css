@@ -164,6 +164,14 @@ button {
   min-width: 0;
 }
 
+.suggestion-reason {
+  font-size: 10.5px;
+  color: var(--vibe-teal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .profile-link:hover strong,
 .name-button:hover strong,
 .relationship-user:hover strong {

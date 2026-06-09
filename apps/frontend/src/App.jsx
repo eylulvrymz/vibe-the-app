@@ -1264,6 +1264,9 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
               <button className="name-button" onClick={() => onNavigate(u.id)}>
                 <strong>{u.displayName}</strong>
                 <span>@{u.username}</span>
+                {suggestionReason(u) && (
+                  <span className="suggestion-reason">{suggestionReason(u)}</span>
+                )}
               </button>
               <button onClick={() => onFollow(u.id)} title={`Follow ${u.username}`}>
                 <Plus size={15} />
@@ -1274,6 +1277,23 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
       </aside>
     </div>
   );
+}
+
+// Builds a short human reason for why this user was suggested, based on the
+// collaborative-filtering signals the backend returns.
+function suggestionReason(u) {
+  const likes = u.sharedLikes || 0;
+  const follows = u.sharedFollows || 0;
+  if (likes > 0 && follows > 0) {
+    return `${likes} ortak beğeni · ${follows} ortak takip`;
+  }
+  if (likes > 0) {
+    return `${likes} ortak beğeni`;
+  }
+  if (follows > 0) {
+    return `${follows} ortak takip`;
+  }
+  return "Takip ağından öneriliyor";
 }
 
 function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendingTrack }) {
