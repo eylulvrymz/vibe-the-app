@@ -389,12 +389,13 @@ useEffect(() => {
   const data = await createPost(session.token, {
     playlistId: playlist.id,
     mood: "Playlist",
-    caption: `Check out my playlist: ${playlist.title}`,
+    caption: `🎵 Check out my playlist — ${playlist.title}`,
   }, session.user);
   setPosts((current) => [data.post, ...current]);
   setView("feed");
+  setStatus("Playlist posted to your feed!");
+  setTimeout(() => setStatus(""), 3000);
 }
- 
   async function handleDeletePost(postId) {
     await deletePost(session.token, postId);
     setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -1508,7 +1509,15 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
         )}
         <p className="post-caption">{post.caption}</p>
         {post.playlist && (
-      <div className="post-playlist-card">
+      <div
+        className="post-playlist-card"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNavigate(post.playlist.user.id);
+        }}
+        title="View playlist on profile"
+        style={{ cursor: "pointer" }}
+        >
         <div className="post-playlist-cover">
           {post.playlist.coverUrl ? (
         <img src={post.playlist.coverUrl} alt="" />
