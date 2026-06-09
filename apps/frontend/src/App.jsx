@@ -1239,7 +1239,7 @@ function Sidebar({ view, setView, user, onLogout, onOwnProfile, onOpenPlaylists 
   );
 }
 
-function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId, token, currentUser, onDelete, onOpenPost, pendingTrackId, onClearPendingTrack }) {
+function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, onLike, onFollow, onNavigate, spotifyToken, onPlay, activeSpotifyId, token, currentUser, onDelete, onOpenPost, pendingTrackId, onClearPendingTrack, onOpenPlaylist }) {
   return (
     <div className="content-grid">
       <section className="feed-column">
@@ -1258,6 +1258,7 @@ function FeedView({ posts, tracks, suggestions, trending, isTrending, onCreate, 
               currentUser={currentUser}
               onDelete={onDelete}
               onOpenPost={onOpenPost}
+              onOpenPlaylist={onOpenPlaylist}
             />
           ))}
         </div>
@@ -1464,7 +1465,7 @@ function Composer({ tracks, onCreate, spotifyToken, pendingTrackId, onClearPendi
   );
 }
 
-function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSpotifyId, token, currentUser, onDelete }) {
+function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSpotifyId, token, currentUser, onDelete, onOpenPlaylist }) {
   const spotifyId = post.track?.spotifyId;
   const [showEmbed, setShowEmbed] = useState(false);
   const isPostOwner = currentUser && post.user.id === currentUser.id;
@@ -1513,9 +1514,13 @@ function PostCard({ post, rank, onLike, onNavigate, onOpenPost, onPlay, activeSp
         className="post-playlist-card"
         onClick={(e) => {
           e.stopPropagation();
-          onNavigate(post.playlist.user.id);
+          if (post.playlist.shareKey && onOpenPlaylist) {
+            onOpenPlaylist(post.playlist.shareKey);
+          } else {
+            onNavigate(post.playlist.user.id);
+          }
         }}
-        title="View playlist on profile"
+        title="View playlist"
         style={{ cursor: "pointer" }}
         >
         <div className="post-playlist-cover">
