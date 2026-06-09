@@ -439,7 +439,7 @@ public final class Database {
 
     private List<Map<String, Object>> posts(String suffix, long currentUserId, int limit) throws SQLException {
         String sql =
-            "SELECT p.id, p.mood, p.caption, p.created_at, " +
+            "SELECT p.id, p.mood, p.caption, p.created_at, p.playlist_id, " +
             "u.id AS user_id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, u.photo_url AS user_photo_url, " +
             "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, t.spotify_id AS track_spotify_id, t.preview_url AS track_preview_url, " +
             "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count, " +
@@ -459,7 +459,7 @@ public final class Database {
 
     private Map<String, Object> postById(long postId, long currentUserId) throws SQLException {
         String sql =
-            "SELECT p.id, p.mood, p.caption, p.created_at, " +
+            "SELECT p.id, p.mood, p.caption, p.created_at, p.playlist_id, " +
             "u.id AS user_id, u.username, u.display_name, u.avatar_key, u.bio, u.favorite_genres, u.photo_url AS user_photo_url, " +
             "t.id AS track_id, t.title, t.artist, t.album, t.genre, t.mood AS track_mood, t.cover_url, t.spotify_id AS track_spotify_id, t.preview_url AS track_preview_url, " +
             "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count, " +
