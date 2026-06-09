@@ -2195,7 +2195,7 @@ function formatDate(value) {
   if (Number.isNaN(date.getTime())) {
     return "now";
   }
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 function PlaylistsView({
   playlists,
