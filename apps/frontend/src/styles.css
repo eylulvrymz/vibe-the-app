@@ -1342,12 +1342,35 @@ button {
 
   .search-pill { width: 100%; }
 
+  /* Mobile composer: image + button on row 1, fields full-width on row 2 */
   .composer {
-    grid-template-columns: 76px minmax(0, 1fr) 44px;
-    gap: 10px;
+    grid-template-columns: 60px 1fr 44px;
+    grid-template-rows: auto auto;
+    gap: 10px 12px;
+    padding: 16px;
   }
 
-  .composer img { width: 76px; height: 76px; }
+  .composer img,
+  .composer-placeholder {
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .composer-fields {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .composer > .icon-primary {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+  }
+
   .composer-row { grid-template-columns: 1fr; }
 
   .post-card {
